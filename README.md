@@ -7,17 +7,19 @@ A very minimal Python web scraper with a web UI, not very efficient.
 - CSS selector based scraping (via BeautifulSoup)
 - Optional attribute extraction (e.g., `src`, `data-id`)
 - Robots.txt check (opt-out)
-- Export to CSV or JSON
+- Export to CSV, JSON or direct download for images
 
 ## Quickstart
 
-1. Install dependencies:
+1. Download the latest [release](https://github.com/G0246/scraper-webUI/releases/latest) and unzip it
+
+2. Install dependencies:
 
 ```
 pip install -r requirements.txt
 ```
 
-2. Run the app:
+3. Run it:
 
 ```
 python app.py
@@ -52,10 +54,8 @@ Examples:
   - `/results?url=https://example.com/&selector=a&attribute=href`
 - Quotes text:
   - `/results?url=https://quotes.toscrape.com/&selector=.quote%20.text`
-- Books to Scrape images (thumbnails ok):
+- Books to Scrape images (thumbnails):
   - `/results?url=https://books.toscrape.com/&selector=img&attribute=src&max_items=20`
-- Safebooru thumbnails upgraded to full images through detail pages:
-  - `/results?url=https://safebooru.org/index.php?page=post&s=list&tags=all&selector=img&attribute=src&respect_robots=0&next_selector=a[alt%3D"next"]&max_pages=10&detail_image_selector=%23image`
 
 ### Export
 
