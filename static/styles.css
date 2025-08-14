@@ -7,6 +7,7 @@
   --accent-2:#2bb673;
   --danger:#e55353;
   --border:#2a2e37;
+  --control-height:42px;
 }
 *{box-sizing:border-box}
 body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif;line-height:1.4}
@@ -14,9 +15,11 @@ body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,
 h1{font-weight:700;margin:0 0 16px}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 label{display:flex;flex-direction:column;gap:6px;font-size:14px;color:var(--muted)}
-input,select{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text)}
-input:focus,select:focus{outline:2px solid var(--accent)}
-.checkbox{display:flex;align-items:center;gap:8px;margin:12px 0}
+input:not([type="checkbox"]):not([type="radio"]),select,textarea{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);width:100%;resize:none;white-space:pre-wrap;word-break:break-word;height:var(--control-height)}
+.no-resize{resize:none}
+input[type="checkbox"]{width:20px;height:20px;accent-color:var(--accent)}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--accent)}
+.checkbox{display:flex;flex-direction:row;align-items:center;gap:10px;margin:12px 0;width:max-content;font-size:16px;line-height:var(--control-height);min-height:var(--control-height)}
 .actions{margin-top:16px}
 button,.btn{background:linear-gradient(180deg,var(--accent),#3d6fd1);border:0;color:white;padding:10px 16px;border-radius:8px;cursor:pointer;text-decoration:none;display:inline-block}
 button:hover,.btn:hover{filter:brightness(1.05)}
@@ -32,8 +35,10 @@ button:hover,.btn:hover{filter:brightness(1.05)}
 .table-wrapper{overflow:auto;border:1px solid var(--border);border-radius:8px}
 table{width:100%;border-collapse:collapse}
 th,td{border-bottom:1px solid var(--border);padding:8px 10px;text-align:left;vertical-align:top}
-.clip{max-width:360px;white-space:nowrap;text-overflow:ellipsis;overflow:hidden}
+.clip{white-space:normal;overflow-wrap:anywhere;word-break:break-word}
 code{background:var(--card);padding:2px 6px;border-radius:6px;border:1px solid var(--border)}
 @media (max-width:720px){.grid{grid-template-columns:1fr}.clip{max-width:200px}}
+
+.footer{max-width:980px;margin:24px auto;padding:0 16px;color:var(--muted);text-align:center}
 
 
