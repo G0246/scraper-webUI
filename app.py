@@ -1,4 +1,5 @@
 # scraper-webUI
+# app.py
 # By G0246
 
 import os
@@ -39,6 +40,10 @@ def create_app() -> Flask:
             max_items = request.form.get("max_items", "").strip()
             next_selector = request.form.get("next_selector", "").strip()
             max_pages = request.form.get("max_pages", "").strip()
+            detail_url_selector = request.form.get("detail_url_selector", "").strip()
+            detail_url_attribute = request.form.get("detail_url_attribute", "").strip()
+            detail_image_selector = request.form.get("detail_image_selector", "").strip()
+            detail_image_attribute = request.form.get("detail_image_attribute", "").strip()
             # Checkbox sends a value only when checked; when unchecked it's absent
             respect_robots = request.form.get("respect_robots") is not None
 
@@ -65,6 +70,14 @@ def create_app() -> Flask:
                 query_args["next_selector"] = next_selector
             if max_pages.isdigit():
                 query_args["max_pages"] = max_pages
+            if detail_url_selector:
+                query_args["detail_url_selector"] = detail_url_selector
+            if detail_url_attribute:
+                query_args["detail_url_attribute"] = detail_url_attribute
+            if detail_image_selector:
+                query_args["detail_image_selector"] = detail_image_selector
+            if detail_image_attribute:
+                query_args["detail_image_attribute"] = detail_image_attribute
 
             return redirect(url_for("results", **query_args))
 
@@ -82,6 +95,10 @@ def create_app() -> Flask:
         max_items_raw = request.args.get("max_items", "").strip()
         next_selector = request.args.get("next_selector", "").strip() or None
         max_pages_raw = request.args.get("max_pages", "").strip()
+        detail_url_selector = request.args.get("detail_url_selector", "").strip() or None
+        detail_url_attribute = request.args.get("detail_url_attribute", "").strip() or "href"
+        detail_image_selector = request.args.get("detail_image_selector", "").strip() or None
+        detail_image_attribute = request.args.get("detail_image_attribute", "").strip() or "src"
         respect_raw = request.args.get("respect_robots", "1").strip().lower()
         respect_robots = respect_raw in {"1", "true", "yes", "on"}
 
@@ -114,6 +131,10 @@ def create_app() -> Flask:
                             user_agent=user_agent,
                             max_items=max_items,
                             max_pages=max_pages,
+                            detail_url_selector=detail_url_selector,
+                            detail_url_attribute=detail_url_attribute,
+                            detail_image_selector=detail_image_selector,
+                            detail_image_attribute=detail_image_attribute,
                         )
                     else:
                         result = scrape_with_selector(
@@ -123,6 +144,10 @@ def create_app() -> Flask:
                             attribute_name=attribute,
                             user_agent=user_agent,
                             max_items=max_items,
+                            detail_url_selector=detail_url_selector,
+                            detail_url_attribute=detail_url_attribute,
+                            detail_image_selector=detail_image_selector,
+                            detail_image_attribute=detail_image_attribute,
                         )
             except Exception as exc:  # noqa: BLE001
                 error_message = f"Error while scraping: {exc}"
@@ -138,12 +163,15 @@ def create_app() -> Flask:
                 "max_items": max_items or "",
                 "next_selector": next_selector or "",
                 "max_pages": max_pages or "",
+                "detail_url_selector": detail_url_selector or "",
+                "detail_url_attribute": detail_url_attribute or "",
+                "detail_image_selector": detail_image_selector or "",
+                "detail_image_attribute": detail_image_attribute or "",
                 "respect_robots": respect_robots,
             },
             result=result,
             error_message=error_message,
         )
-
     @app.route("/export", methods=["GET"])
     def export():
         export_format = request.args.get("format", "csv").strip().lower()
@@ -155,6 +183,10 @@ def create_app() -> Flask:
         max_items_raw = request.args.get("max_items", "").strip()
         next_selector = request.args.get("next_selector", "").strip() or None
         max_pages_raw = request.args.get("max_pages", "").strip()
+        detail_url_selector = request.args.get("detail_url_selector", "").strip() or None
+        detail_url_attribute = request.args.get("detail_url_attribute", "").strip() or "href"
+        detail_image_selector = request.args.get("detail_image_selector", "").strip() or None
+        detail_image_attribute = request.args.get("detail_image_attribute", "").strip() or "src"
         respect_raw = request.args.get("respect_robots", "1").strip().lower()
         respect_robots = respect_raw in {"1", "true", "yes", "on"}
 
@@ -185,6 +217,10 @@ def create_app() -> Flask:
                 user_agent=user_agent,
                 max_items=max_items,
                 max_pages=max_pages,
+                detail_url_selector=detail_url_selector,
+                detail_url_attribute=detail_url_attribute,
+                detail_image_selector=detail_image_selector,
+                detail_image_attribute=detail_image_attribute,
             )
         else:
             result = scrape_with_selector(
@@ -194,6 +230,10 @@ def create_app() -> Flask:
                 attribute_name=attribute,
                 user_agent=user_agent,
                 max_items=max_items,
+                detail_url_selector=detail_url_selector,
+                detail_url_attribute=detail_url_attribute,
+                detail_image_selector=detail_image_selector,
+                detail_image_attribute=detail_image_attribute,
             )
 
         if export_format == "json":

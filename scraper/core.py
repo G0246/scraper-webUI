@@ -1,11 +1,12 @@
 # scraper-webUI
+# core.py
 # By G0246
 
 from __future__ import annotations
 
 import time
 from dataclasses import dataclass
-from typing import Iterable, List, Optional
+from typing import Iterable, List, Optional, Tuple, Callable, Dict, Any
 from urllib.parse import urlparse, urljoin
 
 import bs4
@@ -151,13 +152,42 @@ def _image_url_from_element(base_url: str, element: bs4.Tag, attribute_name: Opt
     return None
 
 
-def _elements_to_items(base_url: str, elements: Iterable[bs4.Tag], attribute_name: Optional[str]) -> List[dict]:
+def _find_detail_url(base_url: str, element: bs4.Tag, detail_url_selector: Optional[str], detail_url_attribute: str) -> Optional[str]:
+    # Prefer an explicit detail selector inside the element
+    if detail_url_selector:
+        try:
+            sub = element.select_one(detail_url_selector)
+            if sub:
+                href = sub.get(detail_url_attribute or "href")
+                if href:
+                    return _to_absolute_url(base_url, href)
+        except Exception:
+            pass
+
+    # Fallbacks: self href, then nearest parent link
+    href = element.get("href")
+    if href:
+        return _to_absolute_url(base_url, href)
+    parent_link = element.find_parent("a")
+    if parent_link and parent_link.get("href"):
+        return _to_absolute_url(base_url, parent_link.get("href"))
+    return None
+
+
+def _elements_to_items(
+    base_url: str,
+    elements: Iterable[bs4.Tag],
+    attribute_name: Optional[str],
+    detail_url_selector: Optional[str] = None,
+    detail_url_attribute: str = "href",
+) -> List[dict]:
     items: List[dict] = []
     for index, element in enumerate(elements):
         text = element.get_text(strip=True)
         href = _resolve_link(base_url, element)
         attribute_value = _extract_attribute(element, attribute_name, base_url)
         image_url = _image_url_from_element(base_url, element, attribute_name)
+        detail_url = _find_detail_url(base_url, element, detail_url_selector, detail_url_attribute)
         items.append(
             {
                 "index": index,
@@ -166,10 +196,25 @@ def _elements_to_items(base_url: str, elements: Iterable[bs4.Tag], attribute_nam
                 "href": href,
                 "attribute_value": attribute_value,
                 "image_url": image_url,
+                "detail_url": detail_url,
                 "html": str(element),
             }
         )
     return items
+
+
+def _extract_full_image_from_detail(session: requests.Session, detail_url: str, detail_image_selector: str, detail_image_attribute: str) -> Optional[str]:
+    try:
+        resp = session.get(detail_url, timeout=15)
+        resp.raise_for_status()
+        soup = BeautifulSoup(resp.text, "lxml")
+        el = soup.select_one(detail_image_selector)
+        if not el:
+            return None
+        value = el.get(detail_image_attribute or "src")
+        return _to_absolute_url(detail_url, value)
+    except Exception:
+        return None
 
 
 def scrape_with_selector(
@@ -179,6 +224,11 @@ def scrape_with_selector(
     attribute_name: Optional[str] = None,
     user_agent: Optional[str] = None,
     max_items: Optional[int] = None,
+    detail_url_selector: Optional[str] = None,
+    detail_url_attribute: str = "href",
+    detail_image_selector: Optional[str] = None,
+    detail_image_attribute: str = "src",
+    progress_cb: Optional[Callable[[Dict[str, Any]], None]] = None,
 ) -> ScrapeResult:
     start_time = time.perf_counter()
     session = create_session(user_agent)
@@ -199,7 +249,25 @@ def scrape_with_selector(
         # Slice early to avoid converting unnecessary elements
         elements = elements[: max(0, max_items)]
 
-    items = _elements_to_items(url, elements, attribute_name)
+    items = _elements_to_items(url, elements, attribute_name, detail_url_selector, detail_url_attribute)
+
+    # Optionally enrich/override image_url by visiting detail pages
+    if detail_image_selector:
+        for item in items:
+            detail_url = item.get("detail_url")
+            if not detail_url:
+                continue
+            full_img = _extract_full_image_from_detail(
+                session=session,
+                detail_url=detail_url,
+                detail_image_selector=detail_image_selector,
+                detail_image_attribute=detail_image_attribute,
+            )
+            if full_img:
+                item["image_url"] = full_img
+
+    if progress_cb:
+        progress_cb({"stage": "done", "items": len(items), "url": url})
 
     elapsed_ms = int((time.perf_counter() - start_time) * 1000)
     return ScrapeResult(
@@ -233,6 +301,11 @@ def scrape_paginated(
     user_agent: Optional[str] = None,
     max_items: Optional[int] = None,
     max_pages: Optional[int] = None,
+    detail_url_selector: Optional[str] = None,
+    detail_url_attribute: str = "href",
+    detail_image_selector: Optional[str] = None,
+    detail_image_attribute: str = "src",
+    progress_cb: Optional[Callable[[Dict[str, Any]], None]] = None,
 ) -> ScrapeResult:
     start_time = time.perf_counter()
     session = create_session(user_agent)
@@ -251,8 +324,22 @@ def scrape_paginated(
         else:
             raise ValueError("Unknown selector_type. Use 'css'.")
 
-        page_items = _elements_to_items(current_url, elements, attribute_name)
+        page_items = _elements_to_items(
+            current_url,
+            elements,
+            attribute_name,
+            detail_url_selector,
+            detail_url_attribute,
+        )
         collected.extend(page_items)
+
+        if progress_cb:
+            progress_cb({
+                "stage": "page",
+                "pages_visited": pages_visited,
+                "items": len(collected),
+                "url": current_url,
+            })
 
         pages_visited += 1
         if max_pages is not None and pages_visited >= max_pages:
@@ -267,9 +354,27 @@ def scrape_paginated(
             break
         current_url = next_url
 
-    # Reindex items after aggregation
+    # Enrich/override items with full images if requested
+    if detail_image_selector:
+        for item in collected:
+            detail_url = item.get("detail_url")
+            if not detail_url:
+                continue
+            full_img = _extract_full_image_from_detail(
+                session=session,
+                detail_url=detail_url,
+                detail_image_selector=detail_image_selector,
+                detail_image_attribute=detail_image_attribute,
+            )
+            if full_img:
+                item["image_url"] = full_img
+
+    # Reindex items after aggregation and enrichment
     for idx, item in enumerate(collected):
         item["index"] = idx
+
+    if progress_cb:
+        progress_cb({"stage": "done", "items": len(collected), "url": url})
 
     elapsed_ms = int((time.perf_counter() - start_time) * 1000)
     return ScrapeResult(
