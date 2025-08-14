@@ -1,3 +1,7 @@
+# scraper-webUI
+# presets.py
+# By G0246
+
 from __future__ import annotations
 
 import json
@@ -16,6 +20,10 @@ PRESET_FIELDS = [
     "next_selector",
     "max_pages",
     "respect_robots",
+    "detail_url_selector",
+    "detail_url_attribute",
+    "detail_image_selector",
+    "detail_image_attribute",
 ]
 
 
