@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Results - scraper-webUI</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/modern-normalize/2.0.0/modern-normalize.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+<main class="container">
+    <h1>Scrape results</h1>
+
+    {% if error_message %}
+        <p class="error">{{ error_message }}</p>
+    {% else %}
+        <div class="meta">
+            <div>
+                <strong>URL:</strong> <code>{{ query.url }}</code>
+            </div>
+            <div>
+                <strong>Selector:</strong> <code>{{ query.selector }}</code> ({{ query.selector_type }})
+            </div>
+            <div>
+                <strong>Items:</strong> {{ result.items|length }} in ~{{ result.elapsed_ms }}ms
+            </div>
+        </div>
+
+        <div class="export">
+            <a class="btn" href="{{ url_for('export', format='csv', **query) }}">Download CSV</a>
+            <a class="btn" href="{{ url_for('export', format='json', **query) }}">Download JSON</a>
+            {% set has_images = result and result.items|selectattr('image_url')|list|length > 0 %}
+            {% if has_images %}
+            <a class="btn" href="{{ url_for('download_all_images', **query) }}">Download all images (ZIP)</a>
+            {% endif %}
+            <a class="btn" href="{{ url_for('index') }}">New search</a>
+        </div>
+
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>tag</th>
+                        <th>preview</th>
+                        <th>text</th>
+                        <th>href</th>
+                        <th>attribute</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for item in result.items %}
+                    <tr>
+                        <td>{{ item.index }}</td>
+                        <td><code>{{ item.tag }}</code></td>
+                        <td>
+                            {% if item.image_url %}
+                                <img src="{{ item.image_url }}" alt="preview" style="max-width:100px;max-height:80px;border-radius:6px;border:1px solid var(--border)">
+                            {% endif %}
+                        </td>
+                        <td class="clip">{{ item.text }}</td>
+                        <td class="clip">{% if item.href %}<a href="{{ item.href }}" target="_blank" rel="noopener">{{ item.href }}</a>{% endif %}</td>
+                        <td class="clip">{{ item.attribute_value }}</td>
+                        <td>
+                            {% if item.image_url %}
+                                <a class="btn" href="{{ url_for('download_image') }}?url={{ item.image_url }}" download>Download</a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% endif %}
+</main>
+</body>
+</html>
+
+

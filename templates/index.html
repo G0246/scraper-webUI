@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>scraper-webUI</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/modern-normalize/2.0.0/modern-normalize.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+<main class="container">
+    <h1>scraper-webUI</h1>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <ul class="flash-list">
+        {% for category, message in messages %}
+            <li class="flash {{ category }}">{{ message }}</li>
+        {% endfor %}
+    </ul>
+    {% endif %}
+    {% endwith %}
+
+    <form method="post" action="/" id="scrape-form">
+        <div class="grid">
+            <label>
+                <span>Target URL</span>
+                <input type="url" name="target_url" placeholder="https://example.com" required>
+            </label>
+            <label>
+                <span>Selector Type</span>
+                <select name="selector_type">
+                    <option value="css" selected>CSS</option>
+                </select>
+            </label>
+        </div>
+
+        <div class="grid">
+            <label>
+                <span>CSS Selector</span>
+                <input type="text" name="selector" placeholder="a.article-link" required>
+            </label>
+            <label>
+                <span>Attribute (optional)</span>
+                <input type="text" name="attribute" placeholder="src or data-id">
+            </label>
+        </div>
+
+        <div class="grid">
+            <label>
+                <span>User-Agent (optional)</span>
+                <input type="text" name="user_agent" placeholder="Custom UA">
+            </label>
+            <label>
+                <span>Max items (optional)</span>
+                <input type="number" name="max_items" min="0" placeholder="100">
+            </label>
+        </div>
+
+        <details class="drawer">
+            <summary>Pagination (optional)</summary>
+            <div class="grid">
+                <label>
+                    <span>Next page CSS selector</span>
+                    <input type="text" name="next_selector" placeholder="a.next">
+                </label>
+                <label>
+                    <span>Max pages</span>
+                    <input type="number" name="max_pages" min="1" placeholder="5">
+                </label>
+            </div>
+        </details>
+
+        <label class="checkbox">
+            <input type="checkbox" name="respect_robots" value="1" checked>
+            Respect robots.txt
+        </label>
+
+        <div class="actions">
+            <button type="submit">Scrape</button>
+        </div>
+    </form>
+
+    <p class="help">Tip: Try selector <code>a</code> to list links, or <code>img</code> with attribute <code>src</code>.</p>
+    <p class="help">For image previews + download buttons, use selector <code>img</code> or a selector whose attribute resolves to an image URL.</p>
+
+    <hr>
+    <h3 style="margin:8px 0">Site presets</h3>
+    <div class="grid">
+        <label>
+            <span>Preset</span>
+            <select id="preset">
+                <option value="">-- Choose a preset --</option>
+                {% for p in presets %}
+                <option
+                    value="{{ p.id }}"
+                    data-url="{{ p.url }}"
+                    data-selector="{{ p.selector }}"
+                    data-attribute="{{ p.attribute }}"
+                    data-user_agent="{{ p.user_agent }}"
+                    data-max_items="{{ p.max_items }}"
+                    data-next_selector="{{ p.next_selector }}"
+                    data-max_pages="{{ p.max_pages }}"
+                    data-respect_robots="{{ p.respect_robots }}"
+                >{{ p.name }}</option>
+                {% endfor %}
+            </select>
+        </label>
+    </div>
+
+    <script>
+    (function(){
+      const form = document.getElementById('scrape-form');
+      const preset = document.getElementById('preset');
+      const set = (name, value) => { const el = form.elements[name]; if (el) el.value = value; };
+      preset.addEventListener('change', () => {
+        const opt = preset.options[preset.selectedIndex];
+        if (!opt || !opt.dataset) return;
+        // Reset optional fields
+        set('attribute',''); set('user_agent',''); set('max_items',''); set('next_selector',''); set('max_pages','');
+        // Fill from dataset
+        set('target_url', opt.dataset.url || '');
+        set('selector', opt.dataset.selector || '');
+        set('attribute', opt.dataset.attribute || '');
+        set('user_agent', opt.dataset.user_agent || '');
+        set('max_items', opt.dataset.max_items || '');
+        set('next_selector', opt.dataset.next_selector || '');
+        set('max_pages', opt.dataset.max_pages || '');
+        const rr = (opt.dataset.respect_robots || '1');
+        const rrBox = form.elements['respect_robots'];
+        if (rrBox) rrBox.checked = (rr === '1' || rr.toLowerCase() === 'true');
+      });
+    })();
+    </script>
+</main>
+</body>
+</html>
+
+

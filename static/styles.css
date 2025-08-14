@@ -1,0 +1,39 @@
+:root{
+  --bg:#0b0c10;
+  --card:#111318;
+  --text:#e9eef6;
+  --muted:#a0aec0;
+  --accent:#5a8dee;
+  --accent-2:#2bb673;
+  --danger:#e55353;
+  --border:#2a2e37;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif;line-height:1.4}
+.container{max-width:980px;margin:32px auto;padding:0 16px}
+h1{font-weight:700;margin:0 0 16px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+label{display:flex;flex-direction:column;gap:6px;font-size:14px;color:var(--muted)}
+input,select{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text)}
+input:focus,select:focus{outline:2px solid var(--accent)}
+.checkbox{display:flex;align-items:center;gap:8px;margin:12px 0}
+.actions{margin-top:16px}
+button,.btn{background:linear-gradient(180deg,var(--accent),#3d6fd1);border:0;color:white;padding:10px 16px;border-radius:8px;cursor:pointer;text-decoration:none;display:inline-block}
+button:hover,.btn:hover{filter:brightness(1.05)}
+.flash-list{list-style:none;padding:0;margin:0 0 12px 0}
+.flash{background:var(--card);border:1px solid var(--border);padding:10px;border-radius:8px}
+.flash.error{border-color:var(--danger);}
+.help{color:var(--muted);font-size:14px;margin-top:12px}
+.error{color:var(--danger)}
+.meta{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:12px}
+.export{display:flex;gap:8px;margin:12px 0}
+.drawer{margin-top:8px}
+.drawer summary{cursor:pointer;color:var(--muted)}
+.table-wrapper{overflow:auto;border:1px solid var(--border);border-radius:8px}
+table{width:100%;border-collapse:collapse}
+th,td{border-bottom:1px solid var(--border);padding:8px 10px;text-align:left;vertical-align:top}
+.clip{max-width:360px;white-space:nowrap;text-overflow:ellipsis;overflow:hidden}
+code{background:var(--card);padding:2px 6px;border-radius:6px;border:1px solid var(--border)}
+@media (max-width:720px){.grid{grid-template-columns:1fr}.clip{max-width:200px}}
+
+
