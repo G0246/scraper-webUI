@@ -64,18 +64,19 @@ def _build_headers(user_agent: Optional[str]) -> dict:
     }
 
 
-def create_session(user_agent: Optional[str]) -> requests.Session:
+def create_session(user_agent: Optional[str], fast_mode: bool = False, retries: int = 2) -> requests.Session:
     session = requests.Session()
     session.headers.update(_build_headers(user_agent))
-    retry = Retry(total=2, backoff_factor=0.3, status_forcelist=[429, 500, 502, 503, 504])
+    total_retries = 0 if fast_mode else max(0, retries)
+    retry = Retry(total=total_retries, backoff_factor=(0.15 if fast_mode else 0.3), status_forcelist=[429, 500, 502, 503, 504])
     adapter = HTTPAdapter(pool_connections=20, pool_maxsize=50, max_retries=retry)
     session.mount("http://", adapter)
     session.mount("https://", adapter)
     return session
 
 
-def _http_get(url: str, session: requests.Session) -> Response:
-    response = session.get(url, timeout=15)
+def _http_get(url: str, session: requests.Session, timeout_seconds: Optional[int] = None) -> Response:
+    response = session.get(url, timeout=(timeout_seconds if timeout_seconds is not None else 15))
     response.raise_for_status()
     return response
 
@@ -228,10 +229,11 @@ def scrape_with_selector(
     detail_url_attribute: str = "href",
     detail_image_selector: Optional[str] = None,
     detail_image_attribute: str = "src",
+    fast_mode: bool = False,
     progress_cb: Optional[Callable[[Dict[str, Any]], None]] = None,
 ) -> ScrapeResult:
     start_time = time.perf_counter()
-    session = create_session(user_agent)
+    session = create_session(user_agent, fast_mode=fast_mode)
     response = _http_get(url, session=session)
     html = response.text
 
@@ -305,10 +307,11 @@ def scrape_paginated(
     detail_url_attribute: str = "href",
     detail_image_selector: Optional[str] = None,
     detail_image_attribute: str = "src",
+    fast_mode: bool = False,
     progress_cb: Optional[Callable[[Dict[str, Any]], None]] = None,
 ) -> ScrapeResult:
     start_time = time.perf_counter()
-    session = create_session(user_agent)
+    session = create_session(user_agent, fast_mode=fast_mode)
 
     collected: List[dict] = []
     pages_visited = 0

@@ -40,24 +40,26 @@
                 <textarea class="no-resize" name="selector" rows="2" placeholder="a.article-link" required></textarea>
             </label>
             <label>
-                <span>Attribute (optional)</span>
+                <span>Attribute (Optional)</span>
                 <input type="text" name="attribute" placeholder="src or data-id">
             </label>
         </div>
 
         <div class="grid">
             <label>
-                <span>User-Agent (optional)</span>
+                <span>User-Agent (Optional)</span>
                 <input type="text" name="user_agent" placeholder="Custom UA">
             </label>
             <label>
-                <span>Max items (optional)</span>
+                <span>Max items (Optional)</span>
                 <input type="number" name="max_items" min="0" placeholder="100">
             </label>
         </div>
 
+
+
         <details class="drawer">
-            <summary>Pagination (optional)</summary>
+            <summary>Pagination (Optional)</summary>
             <div class="grid">
                 <label>
                     <span>Next page CSS selector</span>
@@ -71,7 +73,7 @@
         </details>
 
         <details class="drawer">
-            <summary>Detail page extraction (optional)</summary>
+            <summary>Detail page extraction (Optional)</summary>
             <div class="grid">
                 <label>
                     <span>Detail URL selector (inside result element)</span>
@@ -95,10 +97,16 @@
             <p class="help">Use this when the listing shows thumbnails but the full image is on the detail page. For Safebooru, try Detail image selector <code>#image</code>.</p>
         </details>
 
-        <label class="checkbox">
-            <input type="checkbox" name="respect_robots" value="1" checked>
-            Respect robots.txt
-        </label>
+        <div class="grid">
+            <label class="checkbox">
+                <input type="checkbox" name="fast_mode" value="1">
+                Fast mode (Fewer retries, shorter backoff) [Experimental]
+            </label>
+            <label class="checkbox">
+                <input type="checkbox" name="respect_robots" value="1" checked>
+                Respect robots.txt
+            </label>
+        </div>
 
         <div class="actions">
             <button type="submit">Scrape</button>

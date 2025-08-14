@@ -38,6 +38,7 @@ def create_app() -> Flask:
             attribute = request.form.get("attribute", "").strip()
             user_agent = request.form.get("user_agent", "").strip()
             max_items = request.form.get("max_items", "").strip()
+            fast_mode = request.form.get("fast_mode") is not None
             next_selector = request.form.get("next_selector", "").strip()
             max_pages = request.form.get("max_pages", "").strip()
             detail_url_selector = request.form.get("detail_url_selector", "").strip()
@@ -70,6 +71,8 @@ def create_app() -> Flask:
                 query_args["next_selector"] = next_selector
             if max_pages.isdigit():
                 query_args["max_pages"] = max_pages
+            if fast_mode:
+                query_args["fast_mode"] = "1"
             if detail_url_selector:
                 query_args["detail_url_selector"] = detail_url_selector
             if detail_url_attribute:
@@ -93,6 +96,7 @@ def create_app() -> Flask:
         attribute = request.args.get("attribute", "").strip() or None
         user_agent = request.args.get("user_agent", "").strip() or None
         max_items_raw = request.args.get("max_items", "").strip()
+        fast_mode = request.args.get("fast_mode") in {"1", "true", "on", "yes"}
         next_selector = request.args.get("next_selector", "").strip() or None
         max_pages_raw = request.args.get("max_pages", "").strip()
         detail_url_selector = request.args.get("detail_url_selector", "").strip() or None
@@ -110,6 +114,7 @@ def create_app() -> Flask:
             max_pages: Optional[int] = int(max_pages_raw) if max_pages_raw else None
         except ValueError:
             max_pages = None
+        timeout_seconds: Optional[int] = None
 
         error_message: Optional[str] = None
         result: Optional[ScrapeResult] = None
@@ -131,6 +136,7 @@ def create_app() -> Flask:
                             user_agent=user_agent,
                             max_items=max_items,
                             max_pages=max_pages,
+                            fast_mode=fast_mode,
                             detail_url_selector=detail_url_selector,
                             detail_url_attribute=detail_url_attribute,
                             detail_image_selector=detail_image_selector,
@@ -144,6 +150,7 @@ def create_app() -> Flask:
                             attribute_name=attribute,
                             user_agent=user_agent,
                             max_items=max_items,
+                            fast_mode=fast_mode,
                             detail_url_selector=detail_url_selector,
                             detail_url_attribute=detail_url_attribute,
                             detail_image_selector=detail_image_selector,
@@ -163,6 +170,7 @@ def create_app() -> Flask:
                 "max_items": max_items or "",
                 "next_selector": next_selector or "",
                 "max_pages": max_pages or "",
+                "fast_mode": fast_mode,
                 "detail_url_selector": detail_url_selector or "",
                 "detail_url_attribute": detail_url_attribute or "",
                 "detail_image_selector": detail_image_selector or "",
@@ -181,6 +189,7 @@ def create_app() -> Flask:
         attribute = request.args.get("attribute", "").strip() or None
         user_agent = request.args.get("user_agent", "").strip() or None
         max_items_raw = request.args.get("max_items", "").strip()
+        fast_mode = request.args.get("fast_mode") in {"1", "true", "on", "yes"}
         next_selector = request.args.get("next_selector", "").strip() or None
         max_pages_raw = request.args.get("max_pages", "").strip()
         detail_url_selector = request.args.get("detail_url_selector", "").strip() or None
@@ -198,6 +207,7 @@ def create_app() -> Flask:
             max_pages: Optional[int] = int(max_pages_raw) if max_pages_raw else None
         except ValueError:
             max_pages = None
+        timeout_seconds: Optional[int] = None
 
         if not target_url or not selector:
             flash("URL and selector are required to export.", "error")
@@ -216,7 +226,8 @@ def create_app() -> Flask:
                 attribute_name=attribute,
                 user_agent=user_agent,
                 max_items=max_items,
-                max_pages=max_pages,
+                 max_pages=max_pages,
+                fast_mode=fast_mode,
                 detail_url_selector=detail_url_selector,
                 detail_url_attribute=detail_url_attribute,
                 detail_image_selector=detail_image_selector,
@@ -229,7 +240,8 @@ def create_app() -> Flask:
                 selector=selector,
                 attribute_name=attribute,
                 user_agent=user_agent,
-                max_items=max_items,
+                 max_items=max_items,
+                fast_mode=fast_mode,
                 detail_url_selector=detail_url_selector,
                 detail_url_attribute=detail_url_attribute,
                 detail_image_selector=detail_image_selector,
