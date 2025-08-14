@@ -24,7 +24,7 @@
         <div class="grid">
             <label>
                 <span>Target URL</span>
-                <input type="url" name="target_url" placeholder="https://example.com" required>
+                <textarea class="no-resize" name="target_url" rows="2" placeholder="https://example.com" required></textarea>
             </label>
             <label>
                 <span>Selector Type</span>
@@ -37,7 +37,7 @@
         <div class="grid">
             <label>
                 <span>CSS Selector</span>
-                <input type="text" name="selector" placeholder="a.article-link" required>
+                <textarea class="no-resize" name="selector" rows="2" placeholder="a.article-link" required></textarea>
             </label>
             <label>
                 <span>Attribute (optional)</span>
@@ -61,13 +61,38 @@
             <div class="grid">
                 <label>
                     <span>Next page CSS selector</span>
-                    <input type="text" name="next_selector" placeholder="a.next">
+                    <textarea name="next_selector" rows="2" placeholder="a.next"></textarea>
                 </label>
                 <label>
                     <span>Max pages</span>
                     <input type="number" name="max_pages" min="1" placeholder="5">
                 </label>
             </div>
+        </details>
+
+        <details class="drawer">
+            <summary>Detail page extraction (optional)</summary>
+            <div class="grid">
+                <label>
+                    <span>Detail URL selector (inside result element)</span>
+                    <textarea name="detail_url_selector" rows="2" placeholder="a"></textarea>
+                </label>
+                <label>
+                    <span>Detail URL attribute</span>
+                    <input type="text" name="detail_url_attribute" placeholder="href">
+                </label>
+            </div>
+            <div class="grid">
+                <label>
+                    <span>Detail image selector</span>
+                    <textarea name="detail_image_selector" rows="2" placeholder="#image, article img.main"></textarea>
+                </label>
+                <label>
+                    <span>Detail image attribute</span>
+                    <input type="text" name="detail_image_attribute" placeholder="src">
+                </label>
+            </div>
+            <p class="help">Use this when the listing shows thumbnails but the full image is on the detail page. For Safebooru, try Detail image selector <code>#image</code>.</p>
         </details>
 
         <label class="checkbox">
@@ -101,6 +126,10 @@
                     data-next_selector="{{ p.next_selector }}"
                     data-max_pages="{{ p.max_pages }}"
                     data-respect_robots="{{ p.respect_robots }}"
+                    data-detail_url_selector="{{ p.detail_url_selector }}"
+                    data-detail_url_attribute="{{ p.detail_url_attribute }}"
+                    data-detail_image_selector="{{ p.detail_image_selector }}"
+                    data-detail_image_attribute="{{ p.detail_image_attribute }}"
                 >{{ p.name }}</option>
                 {% endfor %}
             </select>
@@ -117,6 +146,7 @@
         if (!opt || !opt.dataset) return;
         // Reset optional fields
         set('attribute',''); set('user_agent',''); set('max_items',''); set('next_selector',''); set('max_pages','');
+        set('detail_url_selector',''); set('detail_url_attribute',''); set('detail_image_selector',''); set('detail_image_attribute','');
         // Fill from dataset
         set('target_url', opt.dataset.url || '');
         set('selector', opt.dataset.selector || '');
@@ -125,6 +155,10 @@
         set('max_items', opt.dataset.max_items || '');
         set('next_selector', opt.dataset.next_selector || '');
         set('max_pages', opt.dataset.max_pages || '');
+        set('detail_url_selector', opt.dataset.detail_url_selector || '');
+        set('detail_url_attribute', opt.dataset.detail_url_attribute || '');
+        set('detail_image_selector', opt.dataset.detail_image_selector || '');
+        set('detail_image_attribute', opt.dataset.detail_image_attribute || '');
         const rr = (opt.dataset.respect_robots || '1');
         const rrBox = form.elements['respect_robots'];
         if (rrBox) rrBox.checked = (rr === '1' || rr.toLowerCase() === 'true');
@@ -132,6 +166,10 @@
     })();
     </script>
 </main>
+<footer class="footer">
+    <small>scraper-webUI by G0246</small>
+
+</footer>
 </body>
 </html>
 

@@ -36,6 +36,17 @@
             <a class="btn" href="{{ url_for('index') }}">New search</a>
         </div>
 
+        {% if progress_events and progress_events|length > 0 %}
+        <details class="drawer" open>
+            <summary>Progress</summary>
+            <ul class="flash-list">
+                {% for ev in progress_events %}
+                <li class="flash">{{ ev.stage }} — items: {{ ev.items }}{% if ev.pages_visited %}, pages: {{ ev.pages_visited }}{% endif %} {% if ev.url %}<code>{{ ev.url }}</code>{% endif %}</li>
+                {% endfor %}
+            </ul>
+        </details>
+        {% endif %}
+
         <div class="table-wrapper">
             <table>
                 <thead>
@@ -61,7 +72,7 @@
                         </td>
                         <td class="clip">{{ item.text }}</td>
                         <td class="clip">{% if item.href %}<a href="{{ item.href }}" target="_blank" rel="noopener">{{ item.href }}</a>{% endif %}</td>
-                        <td class="clip">{{ item.attribute_value }}</td>
+                        <td class="clip">{% if item.image_url %}{{ item.image_url }}{% else %}{{ item.attribute_value }}{% endif %}</td>
                         <td>
                             {% if item.image_url %}
                                 <a class="btn" href="{{ url_for('download_image') }}?url={{ item.image_url }}" download>Download</a>
@@ -74,6 +85,10 @@
         </div>
     {% endif %}
 </main>
+<footer class="footer">
+    <small>scraper-webUI by G0246</small>
+
+</footer>
 </body>
 </html>
 
