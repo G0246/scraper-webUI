@@ -13,6 +13,8 @@ import requests
 from bs4 import BeautifulSoup
 from requests import Response
 from urllib import robotparser
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 DEFAULT_USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -61,8 +63,18 @@ def _build_headers(user_agent: Optional[str]) -> dict:
     }
 
 
-def _http_get(url: str, headers: dict) -> Response:
-    response = requests.get(url, headers=headers, timeout=20)
+def create_session(user_agent: Optional[str]) -> requests.Session:
+    session = requests.Session()
+    session.headers.update(_build_headers(user_agent))
+    retry = Retry(total=2, backoff_factor=0.3, status_forcelist=[429, 500, 502, 503, 504])
+    adapter = HTTPAdapter(pool_connections=20, pool_maxsize=50, max_retries=retry)
+    session.mount("http://", adapter)
+    session.mount("https://", adapter)
+    return session
+
+
+def _http_get(url: str, session: requests.Session) -> Response:
+    response = session.get(url, timeout=15)
     response.raise_for_status()
     return response
 
@@ -169,8 +181,8 @@ def scrape_with_selector(
     max_items: Optional[int] = None,
 ) -> ScrapeResult:
     start_time = time.perf_counter()
-    headers = _build_headers(user_agent)
-    response = _http_get(url, headers=headers)
+    session = create_session(user_agent)
+    response = _http_get(url, session=session)
     html = response.text
 
     soup = BeautifulSoup(html, "lxml")
@@ -184,6 +196,7 @@ def scrape_with_selector(
         raise ValueError("Unknown selector_type. Use 'css'.")
 
     if max_items is not None and max_items >= 0:
+        # Slice early to avoid converting unnecessary elements
         elements = elements[: max(0, max_items)]
 
     items = _elements_to_items(url, elements, attribute_name)
@@ -222,14 +235,14 @@ def scrape_paginated(
     max_pages: Optional[int] = None,
 ) -> ScrapeResult:
     start_time = time.perf_counter()
-    headers = _build_headers(user_agent)
+    session = create_session(user_agent)
 
     collected: List[dict] = []
     pages_visited = 0
     current_url = url
 
     while current_url:
-        response = _http_get(current_url, headers=headers)
+        response = _http_get(current_url, session=session)
         html = response.text
         soup = BeautifulSoup(html, "lxml")
 

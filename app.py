@@ -259,6 +259,7 @@ def create_app() -> Flask:
         import zipfile
         import re
         import requests
+        import concurrent.futures
         from urllib.parse import urlparse
 
         target_url = request.args.get("url", "").strip()
@@ -321,30 +322,37 @@ def create_app() -> Flask:
 
         headers = {"User-Agent": user_agent or "scraper-webUI"}
         zip_buffer = io.BytesIO()
-        with zipfile.ZipFile(zip_buffer, mode="w", compression=zipfile.ZIP_DEFLATED) as zf:
-            for idx, item in enumerate(image_items):
-                img_url = item["image_url"]
-                try:
-                    resp = requests.get(img_url, headers=headers, timeout=30)
-                    resp.raise_for_status()
-                except Exception:
-                    continue
 
-                parsed = urlparse(img_url)
-                base = os.path.basename(parsed.path) or f"image_{idx}"
-                root, ext = os.path.splitext(base)
-                if not ext:
-                    ct = resp.headers.get("Content-Type", "")
-                    if "png" in ct:
-                        ext = ".png"
-                    elif "webp" in ct:
-                        ext = ".webp"
-                    elif "gif" in ct:
-                        ext = ".gif"
-                    else:
-                        ext = ".jpg"
-                filename = f"{idx:04d}_{sanitize(root)}{ext}"
-                zf.writestr(filename, resp.content)
+        def fetch(idx_and_url):
+            idx, img_url = idx_and_url
+            try:
+                resp = requests.get(img_url, headers=headers, timeout=20)
+                resp.raise_for_status()
+                return idx, img_url, resp
+            except Exception:
+                return idx, img_url, None
+
+        with zipfile.ZipFile(zip_buffer, mode="w", compression=zipfile.ZIP_DEFLATED) as zf:
+            # Fetch concurrently for speed
+            with concurrent.futures.ThreadPoolExecutor(max_workers=8) as ex:
+                for idx, img_url, resp in ex.map(fetch, [(i, it["image_url"]) for i, it in enumerate(image_items)]):
+                    if resp is None:
+                        continue
+                    parsed = urlparse(img_url)
+                    base = os.path.basename(parsed.path) or f"image_{idx}"
+                    root, ext = os.path.splitext(base)
+                    if not ext:
+                        ct = resp.headers.get("Content-Type", "")
+                        if "png" in ct:
+                            ext = ".png"
+                        elif "webp" in ct:
+                            ext = ".webp"
+                        elif "gif" in ct:
+                            ext = ".gif"
+                        else:
+                            ext = ".jpg"
+                    filename = f"{idx:04d}_{sanitize(root)}{ext}"
+                    zf.writestr(filename, resp.content)
 
         zip_buffer.seek(0)
         return send_file(
