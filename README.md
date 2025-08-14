@@ -11,11 +11,9 @@ A very minimal Python web scraper with a web UI, not very efficient.
 
 ## Quickstart
 
-1. Create a virtual environment and install dependencies (Recommended):
+1. Install dependencies:
 
 ```
-python -m venv .venv
-.venv\\Scripts\\activate
 pip install -r requirements.txt
 ```
 
@@ -37,7 +35,7 @@ GET `/results` with params:
 - `url`: target page to scrape (required)
 - `selector_type`: `css` (default)
 - `selector`: CSS selector to match (required)
-- `attribute`: optional attribute to extract from each element (e.g., `href`, `src`)
+- `attribute`: optional attribute to extract from each element (e.g. `href`, `src`)
 - `user_agent`: optional custom UA
 - `max_items`: optional cap (integer)
 - `respect_robots`: `1`/`0`, `true`/`false` (default `1`)
