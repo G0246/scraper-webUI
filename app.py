@@ -39,6 +39,7 @@ def create_app() -> Flask:
             user_agent = request.form.get("user_agent", "").strip()
             max_items = request.form.get("max_items", "").strip()
             fast_mode = request.form.get("fast_mode") is not None
+            randomize_user_agent = request.form.get("randomize_user_agent") is not None
             next_selector = request.form.get("next_selector", "").strip()
             max_pages = request.form.get("max_pages", "").strip()
             detail_url_selector = request.form.get("detail_url_selector", "").strip()
@@ -73,6 +74,8 @@ def create_app() -> Flask:
                 query_args["max_pages"] = max_pages
             if fast_mode:
                 query_args["fast_mode"] = "1"
+            if randomize_user_agent:
+                query_args["randomize_user_agent"] = "1"
             if detail_url_selector:
                 query_args["detail_url_selector"] = detail_url_selector
             if detail_url_attribute:
@@ -105,6 +108,7 @@ def create_app() -> Flask:
         detail_image_attribute = request.args.get("detail_image_attribute", "").strip() or "src"
         respect_raw = request.args.get("respect_robots", "1").strip().lower()
         respect_robots = respect_raw in {"1", "true", "yes", "on"}
+        randomize_user_agent = request.args.get("randomize_user_agent") in {"1", "true", "on", "yes"}
 
         try:
             max_items: Optional[int] = int(max_items_raw) if max_items_raw else None
@@ -123,6 +127,11 @@ def create_app() -> Flask:
             error_message = "URL and selector are required."
         else:
             try:
+                # Detect client disconnect (best-effort: check 'Connection' header; for proper support use async workers)
+                def is_canceled() -> bool:
+                    # In most sync WSGI servers we cannot reliably detect disconnects.
+                    # Keep hook for future async servers or reverse proxies.
+                    return False
                 if respect_robots and not is_allowed_by_robots(target_url, user_agent or "scraper-webUI"):
                     error_message = "Scraping is disallowed by robots.txt for the provided URL."
                 else:
@@ -133,10 +142,11 @@ def create_app() -> Flask:
                             selector=selector,
                             next_selector=next_selector,
                             attribute_name=attribute,
-                            user_agent=user_agent,
+                            user_agent=(None if randomize_user_agent else user_agent),
                             max_items=max_items,
                             max_pages=max_pages,
                             fast_mode=fast_mode,
+                            is_canceled=is_canceled,
                             detail_url_selector=detail_url_selector,
                             detail_url_attribute=detail_url_attribute,
                             detail_image_selector=detail_image_selector,
@@ -148,9 +158,10 @@ def create_app() -> Flask:
                             selector_type=selector_type,
                             selector=selector,
                             attribute_name=attribute,
-                            user_agent=user_agent,
+                            user_agent=(None if randomize_user_agent else user_agent),
                             max_items=max_items,
                             fast_mode=fast_mode,
+                            is_canceled=is_canceled,
                             detail_url_selector=detail_url_selector,
                             detail_url_attribute=detail_url_attribute,
                             detail_image_selector=detail_image_selector,
@@ -176,6 +187,7 @@ def create_app() -> Flask:
                 "detail_image_selector": detail_image_selector or "",
                 "detail_image_attribute": detail_image_attribute or "",
                 "respect_robots": respect_robots,
+                "randomize_user_agent": randomize_user_agent,
             },
             result=result,
             error_message=error_message,
@@ -198,6 +210,7 @@ def create_app() -> Flask:
         detail_image_attribute = request.args.get("detail_image_attribute", "").strip() or "src"
         respect_raw = request.args.get("respect_robots", "1").strip().lower()
         respect_robots = respect_raw in {"1", "true", "yes", "on"}
+        randomize_user_agent = request.args.get("randomize_user_agent") in {"1", "true", "on", "yes"}
 
         try:
             max_items: Optional[int] = int(max_items_raw) if max_items_raw else None
@@ -224,7 +237,7 @@ def create_app() -> Flask:
                 selector=selector,
                 next_selector=next_selector,
                 attribute_name=attribute,
-                user_agent=user_agent,
+                user_agent=(None if randomize_user_agent else user_agent),
                 max_items=max_items,
                  max_pages=max_pages,
                 fast_mode=fast_mode,
@@ -239,7 +252,7 @@ def create_app() -> Flask:
                 selector_type=selector_type,
                 selector=selector,
                 attribute_name=attribute,
-                user_agent=user_agent,
+                user_agent=(None if randomize_user_agent else user_agent),
                  max_items=max_items,
                 fast_mode=fast_mode,
                 detail_url_selector=detail_url_selector,

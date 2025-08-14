@@ -23,6 +23,16 @@ DEFAULT_USER_AGENT = (
     "Chrome/126.0 Safari/537.36"
 )
 
+RANDOM_UAS = [
+    # Common modern desktop UAs
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:127.0) Gecko/20100101 Firefox/127.0",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 13_6) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15",
+    # A couple mobile UAs
+    "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Mobile Safari/537.36",
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1",
+]
+
 
 @dataclass
 class ScrapedItem:
@@ -55,9 +65,19 @@ def is_allowed_by_robots(url: str, user_agent: str = "scraper-webUI") -> bool:
         return True
 
 
+def _pick_user_agent(explicit_user_agent: Optional[str]) -> str:
+    if explicit_user_agent:
+        return explicit_user_agent
+    try:
+        import random
+        return random.choice(RANDOM_UAS)
+    except Exception:
+        return DEFAULT_USER_AGENT
+
+
 def _build_headers(user_agent: Optional[str]) -> dict:
     return {
-        "User-Agent": user_agent or DEFAULT_USER_AGENT,
+        "User-Agent": _pick_user_agent(user_agent),
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         "Accept-Language": "en-US,en;q=0.9",
         "Cache-Control": "no-cache",
@@ -231,6 +251,7 @@ def scrape_with_selector(
     detail_image_attribute: str = "src",
     fast_mode: bool = False,
     progress_cb: Optional[Callable[[Dict[str, Any]], None]] = None,
+    is_canceled: Optional[Callable[[], bool]] = None,
 ) -> ScrapeResult:
     start_time = time.perf_counter()
     session = create_session(user_agent, fast_mode=fast_mode)
@@ -256,6 +277,8 @@ def scrape_with_selector(
     # Optionally enrich/override image_url by visiting detail pages
     if detail_image_selector:
         for item in items:
+            if is_canceled and is_canceled():
+                raise RuntimeError("Cancelled")
             detail_url = item.get("detail_url")
             if not detail_url:
                 continue
@@ -309,6 +332,7 @@ def scrape_paginated(
     detail_image_attribute: str = "src",
     fast_mode: bool = False,
     progress_cb: Optional[Callable[[Dict[str, Any]], None]] = None,
+    is_canceled: Optional[Callable[[], bool]] = None,
 ) -> ScrapeResult:
     start_time = time.perf_counter()
     session = create_session(user_agent, fast_mode=fast_mode)
@@ -318,6 +342,8 @@ def scrape_paginated(
     current_url = url
 
     while current_url:
+        if is_canceled and is_canceled():
+            raise RuntimeError("Cancelled")
         response = _http_get(current_url, session=session)
         html = response.text
         soup = BeautifulSoup(html, "lxml")
@@ -334,7 +360,10 @@ def scrape_paginated(
             detail_url_selector,
             detail_url_attribute,
         )
-        collected.extend(page_items)
+        for it in page_items:
+            if is_canceled and is_canceled():
+                raise RuntimeError("Cancelled")
+            collected.append(it)
 
         if progress_cb:
             progress_cb({
@@ -360,6 +389,8 @@ def scrape_paginated(
     # Enrich/override items with full images if requested
     if detail_image_selector:
         for item in collected:
+            if is_canceled and is_canceled():
+                raise RuntimeError("Cancelled")
             detail_url = item.get("detail_url")
             if not detail_url:
                 continue
