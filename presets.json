@@ -1,0 +1,53 @@
+[
+  {
+    "id": "example_links",
+    "name": "Example.com (links)",
+    "url": "https://example.com/",
+    "selector": "a",
+    "attribute": "href",
+    "user_agent": "",
+    "max_items": "",
+    "next_selector": "",
+    "max_pages": "",
+    "respect_robots": "1"
+  },
+  {
+    "id": "quotes_text",
+    "name": "Quotes to Scrape (quotes)",
+    "url": "https://quotes.toscrape.com/",
+    "selector": ".quote .text",
+    "attribute": "",
+    "user_agent": "",
+    "max_items": "",
+    "next_selector": "",
+    "max_pages": "",
+    "respect_robots": "1"
+  },
+  {
+    "id": "books_images",
+    "name": "Books to Scrape (images)",
+    "url": "https://books.toscrape.com/",
+    "selector": "img",
+    "attribute": "src",
+    "user_agent": "",
+    "max_items": "50",
+    "next_selector": "",
+    "max_pages": "",
+    "respect_robots": "1"
+  },
+  {
+    "id": "safebooru_images",
+    "name": "Safebooru (images, paginated)",
+    "url": "https://safebooru.org/index.php?page=post&s=list&tags=all",
+    "selector": "img",
+    "attribute": "src",
+    "user_agent": "",
+    "max_items": "",
+    "next_selector": "a[alt=\"next\"]",
+    "max_pages": "10",
+    "respect_robots": "0"
+  }
+]
+
+
+
