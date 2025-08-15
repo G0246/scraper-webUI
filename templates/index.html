@@ -122,7 +122,7 @@
     <p class="help">Please respect target site Terms of Service. Keep request volume low.</p>
 
     <hr>
-    <h3 style="margin:8px 0">Site presets</h3>
+    <h3 style="margin:8px 0">Scrape presets</h3>
     <div class="grid">
         <label>
             <span>Preset</span>
@@ -147,43 +147,126 @@
                 {% endfor %}
             </select>
         </label>
+                <div style="display:flex; align-items:flex-end; gap:8px;">
+                        <button type="button" id="btn-save-preset" class="btn">Save preset</button>
+                        <button type="button" id="btn-delete-preset" class="btn btn-danger">Delete preset</button>
+                </div>
     </div>
 
     <script>
-    (function(){
-      const form = document.getElementById('scrape-form');
-      const preset = document.getElementById('preset');
-      const set = (name, value) => { const el = form.elements[name]; if (el) el.value = value; };
-      preset.addEventListener('change', () => {
-        const opt = preset.options[preset.selectedIndex];
-        if (!opt || !opt.dataset) return;
-        // Reset optional fields
-        set('attribute',''); set('user_agent',''); set('max_items',''); set('next_selector',''); set('max_pages','');
-        set('detail_url_selector',''); set('detail_url_attribute',''); set('detail_image_selector',''); set('detail_image_attribute','');
-        // Fill from dataset
-        set('target_url', opt.dataset.url || '');
-        set('selector', opt.dataset.selector || '');
-        set('attribute', opt.dataset.attribute || '');
-        set('user_agent', opt.dataset.user_agent || '');
-        set('max_items', opt.dataset.max_items || '');
-        set('next_selector', opt.dataset.next_selector || '');
-        set('max_pages', opt.dataset.max_pages || '');
-        set('detail_url_selector', opt.dataset.detail_url_selector || '');
-        set('detail_url_attribute', opt.dataset.detail_url_attribute || '');
-        set('detail_image_selector', opt.dataset.detail_image_selector || '');
-        set('detail_image_attribute', opt.dataset.detail_image_attribute || '');
-        const rr = (opt.dataset.respect_robots || '1');
-        const rrBox = form.elements['respect_robots'];
-        if (rrBox) rrBox.checked = (rr === '1' || rr.toLowerCase() === 'true');
-      });
-    })();
+        (function() {
+            const form = document.getElementById('scrape-form');
+            const preset = document.getElementById('preset');
+            const set = (name, value) => { const el = form.elements[name]; if (el) el.value = value; };
+            const get = (name) => { const el = form.elements[name]; return el ? el.value : ''; };
+            const fetchJson = async (url, opts = {}) => {
+                const res = await fetch(url, Object.assign({ headers: { 'Content-Type': 'application/json' } }, opts));
+                let body = null; try { body = await res.json(); } catch (e) {}
+                if (!res.ok || (body && body.ok === false)) { throw new Error((body && body.error) || res.statusText); }
+                return body || { ok: true };
+            };
+
+            preset.addEventListener('change', () => {
+                const opt = preset.options[preset.selectedIndex];
+                if (!opt || !opt.dataset) return;
+                // Reset optional fields
+                set('attribute',''); set('user_agent',''); set('max_items',''); set('next_selector',''); set('max_pages','');
+                set('detail_url_selector',''); set('detail_url_attribute',''); set('detail_image_selector',''); set('detail_image_attribute','');
+                // Fill from dataset
+                set('target_url', opt.dataset.url || '');
+                set('selector', opt.dataset.selector || '');
+                set('attribute', opt.dataset.attribute || '');
+                set('user_agent', opt.dataset.user_agent || '');
+                set('max_items', opt.dataset.max_items || '');
+                set('next_selector', opt.dataset.next_selector || '');
+                set('max_pages', opt.dataset.max_pages || '');
+                set('detail_url_selector', opt.dataset.detail_url_selector || '');
+                set('detail_url_attribute', opt.dataset.detail_url_attribute || '');
+                set('detail_image_selector', opt.dataset.detail_image_selector || '');
+                set('detail_image_attribute', opt.dataset.detail_image_attribute || '');
+                const rr = (opt.dataset.respect_robots || '1');
+                const rrBox = form.elements['respect_robots'];
+                if (rrBox) rrBox.checked = (rr === '1' || rr.toLowerCase() === 'true');
+            });
+
+            const updateDropdownOption = (p) => {
+                // Try find existing option by value=id
+                let opt = Array.from(preset.options).find(o => o.value === p.id);
+                if (!opt) {
+                    opt = document.createElement('option');
+                    preset.appendChild(opt);
+                }
+                opt.value = p.id;
+                opt.textContent = p.name;
+                opt.dataset.url = p.url || '';
+                opt.dataset.selector = p.selector || '';
+                opt.dataset.attribute = p.attribute || '';
+                opt.dataset.user_agent = p.user_agent || '';
+                opt.dataset.max_items = p.max_items || '';
+                opt.dataset.next_selector = p.next_selector || '';
+                opt.dataset.max_pages = p.max_pages || '';
+                opt.dataset.respect_robots = (p.respect_robots || '1');
+                opt.dataset.detail_url_selector = p.detail_url_selector || '';
+                opt.dataset.detail_url_attribute = p.detail_url_attribute || '';
+                opt.dataset.detail_image_selector = p.detail_image_selector || '';
+                opt.dataset.detail_image_attribute = p.detail_image_attribute || '';
+                preset.value = p.id;
+            };
+
+            document.getElementById('btn-save-preset').addEventListener('click', async () => {
+                try {
+                    const currentId = preset.value || '';
+                    const defaultId = currentId || (get('selector').slice(0, 20).replace(/[^a-z0-9_-]+/gi,'_').toLowerCase() || 'my_preset');
+                    const id = prompt('Preset ID (no spaces):', defaultId);
+                    if (!id) return;
+                    const name = prompt('Preset display name:', currentId ? preset.options[preset.selectedIndex].textContent : 'My Preset');
+                    if (!name) return;
+                    const payload = {
+                        id: id.trim(),
+                        name: name.trim(),
+                        url: get('target_url'),
+                        selector: get('selector'),
+                        attribute: get('attribute'),
+                        user_agent: get('user_agent'),
+                        max_items: get('max_items'),
+                        next_selector: get('next_selector'),
+                        max_pages: get('max_pages'),
+                        respect_robots: (form.elements['respect_robots'] && form.elements['respect_robots'].checked) ? '1' : '0',
+                        detail_url_selector: get('detail_url_selector'),
+                        detail_url_attribute: get('detail_url_attribute'),
+                        detail_image_selector: get('detail_image_selector'),
+                        detail_image_attribute: get('detail_image_attribute'),
+                    };
+                    const res = await fetchJson('/presets/save', { method: 'POST', body: JSON.stringify(payload) });
+                    if (res && res.preset) updateDropdownOption(res.preset);
+                    alert('Preset saved');
+                } catch (e) {
+                    alert('Failed to save preset: ' + e.message);
+                }
+            });
+
+            document.getElementById('btn-delete-preset').addEventListener('click', async () => {
+                const id = preset.value;
+                if (!id) { alert('Choose a preset to delete.'); return; }
+                if (!confirm('Delete preset "' + preset.options[preset.selectedIndex].textContent + '"?')) return;
+                try {
+                    const res = await fetchJson('/presets/delete', { method: 'POST', body: JSON.stringify({ id }) });
+                    if (res && res.ok) {
+                        // Remove option
+                        const opt = Array.from(preset.options).find(o => o.value === id);
+                        if (opt) opt.remove();
+                        preset.value = '';
+                        alert('Preset deleted');
+                    }
+                } catch (e) {
+                    alert('Failed to delete preset: ' + e.message);
+                }
+            });
+        })();
     </script>
 </main>
 <footer class="footer">
     <small>scraper-webUI by G0246</small>
-
 </footer>
 </body>
 </html>
-
-

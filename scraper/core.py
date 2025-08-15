@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass
-from typing import Iterable, List, Optional, Tuple, Callable, Dict, Any
+from typing import Iterable, List, Optional, Callable, Dict, Any
 from urllib.parse import urlparse, urljoin
 
 import bs4
@@ -25,23 +25,12 @@ DEFAULT_USER_AGENT = (
 )
 
 RANDOM_UAS = [
-    # Common desktop UAs
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0 Safari/537.36",
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:127.0) Gecko/20100101 Firefox/127.0",
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 13_6) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15",
-    # Mobile UAs
     "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Mobile Safari/537.36",
     "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1",
 ]
-
-@dataclass
-class ScrapedItem:
-    index: int
-    tag: str
-    text: str
-    href: Optional[str]
-    attribute_value: Optional[str]
-    html: str
 
 @dataclass
 class ScrapeResult:
@@ -383,7 +372,7 @@ def scrape_paginated(
             if full_img:
                 item["image_url"] = full_img
 
-    # Reindex items after aggregation and enrichment
+    # Reindex items
     for idx, item in enumerate(collected):
         item["index"] = idx
 

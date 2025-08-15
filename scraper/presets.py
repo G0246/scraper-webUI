@@ -8,7 +8,6 @@ import json
 import os
 from typing import List, Dict
 
-
 PRESET_FIELDS = [
     "id",
     "name",
@@ -25,7 +24,6 @@ PRESET_FIELDS = [
     "detail_image_selector",
     "detail_image_attribute",
 ]
-
 
 def _normalize_preset(obj: Dict[str, object]) -> Dict[str, str]:
     normalized: Dict[str, str] = {}
