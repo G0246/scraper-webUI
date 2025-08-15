@@ -276,7 +276,11 @@ def create_app() -> Flask:
         # Default to CSV
         import csv
         text_buffer = io.StringIO()
-        writer = csv.DictWriter(text_buffer, fieldnames=["index", "tag", "text", "href", "attribute_value", "image_url", "html"])
+        writer = csv.DictWriter(
+            text_buffer,
+            fieldnames=["index", "tag", "text", "href", "attribute_value", "image_url", "html"],
+            extrasaction="ignore",
+        )
         writer.writeheader()
         for item in result.items:
             writer.writerow(item)
