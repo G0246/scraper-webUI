@@ -89,9 +89,6 @@ venv.bak/
 Thumbs.db
 desktop.ini
 
-# Node (in case of frontend assets later)
-node_modules/
-
 # Logs / temp
 *.log
 *.tmp
