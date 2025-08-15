@@ -9,7 +9,11 @@
     "max_items": "",
     "next_selector": "",
     "max_pages": "",
-    "respect_robots": "1"
+    "respect_robots": "1",
+    "detail_url_selector": "",
+    "detail_url_attribute": "",
+    "detail_image_selector": "",
+    "detail_image_attribute": ""
   },
   {
     "id": "quotes_text",
@@ -21,7 +25,11 @@
     "max_items": "",
     "next_selector": "li.next > a",
     "max_pages": "5",
-    "respect_robots": "1"
+    "respect_robots": "1",
+    "detail_url_selector": "",
+    "detail_url_attribute": "",
+    "detail_image_selector": "",
+    "detail_image_attribute": ""
   },
   {
     "id": "books_images",
@@ -33,7 +41,11 @@
     "max_items": "50",
     "next_selector": "li.next > a",
     "max_pages": "5",
-    "respect_robots": "1"
+    "respect_robots": "1",
+    "detail_url_selector": "",
+    "detail_url_attribute": "",
+    "detail_image_selector": "",
+    "detail_image_attribute": ""
   },
   {
     "id": "safebooru_thumbs",
@@ -45,7 +57,11 @@
     "max_items": "",
     "next_selector": "a[alt=\"next\"]",
     "max_pages": "5",
-    "respect_robots": "1"
+    "respect_robots": "1",
+    "detail_url_selector": "",
+    "detail_url_attribute": "",
+    "detail_image_selector": "",
+    "detail_image_attribute": ""
   },
   {
     "id": "safebooru_full",
@@ -64,6 +80,3 @@
     "detail_image_attribute": "src"
   }
 ]
-
-
-
