@@ -3,6 +3,9 @@
 # core.py
 # By G0246
 
+# Improvements are needed
+# The implementation of random user agents will be changed.
+
 from __future__ import annotations
 
 import time
@@ -135,13 +138,13 @@ def _image_url_from_element(base_url: str, element: bs4.Tag, attribute_name: Opt
             src = _parse_srcset_take_first(element.get("srcset"))
         return _to_absolute_url(base_url, src)
 
-    # If a specific attribute is requested and looks like an image URL
+    # If a specific attribute is requested and looks like an image URL?
     if attribute_name:
         candidate = _extract_attribute(element, attribute_name, base_url)
         if _is_image_url(candidate):
             return candidate
 
-    # Fallbacks: if href points to an image
+    # Fallback: if href points to an image
     href = element.get("href")
     href_abs = _to_absolute_url(base_url, href)
     if _is_image_url(href_abs):
@@ -161,7 +164,7 @@ def _find_detail_url(base_url: str, element: bs4.Tag, detail_url_selector: Optio
         except Exception:
             pass
 
-    # Fallbacks: self href, then nearest parent link
+    # Fallback: self href, then nearest parent link
     href = element.get("href")
     if href:
         return _to_absolute_url(base_url, href)
