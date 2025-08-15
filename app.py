@@ -1,4 +1,5 @@
 # scraper-webUI
+# A not very efficient scraper web UI.
 # app.py
 # By G0246
 
@@ -46,7 +47,6 @@ def create_app() -> Flask:
             detail_url_attribute = request.form.get("detail_url_attribute", "").strip()
             detail_image_selector = request.form.get("detail_image_selector", "").strip()
             detail_image_attribute = request.form.get("detail_image_attribute", "").strip()
-            # Checkbox sends a value only when checked; when unchecked it's absent
             respect_robots = request.form.get("respect_robots") is not None
 
             if not target_url:
@@ -127,10 +127,9 @@ def create_app() -> Flask:
             error_message = "URL and selector are required."
         else:
             try:
-                # Detect client disconnect (best-effort: check 'Connection' header; for proper support use async workers)
+                # Detect client disconnect
                 def is_canceled() -> bool:
-                    # In most sync WSGI servers we cannot reliably detect disconnects.
-                    # Keep hook for future async servers or reverse proxies.
+                    # Unfinished hook
                     return False
                 if respect_robots and not is_allowed_by_robots(target_url, user_agent or "scraper-webUI"):
                     error_message = "Scraping is disallowed by robots.txt for the provided URL."
@@ -192,6 +191,7 @@ def create_app() -> Flask:
             result=result,
             error_message=error_message,
         )
+
     @app.route("/export", methods=["GET"])
     def export():
         export_format = request.args.get("format", "csv").strip().lower()
@@ -239,7 +239,7 @@ def create_app() -> Flask:
                 attribute_name=attribute,
                 user_agent=(None if randomize_user_agent else user_agent),
                 max_items=max_items,
-                 max_pages=max_pages,
+                max_pages=max_pages,
                 fast_mode=fast_mode,
                 detail_url_selector=detail_url_selector,
                 detail_url_attribute=detail_url_attribute,
@@ -253,7 +253,7 @@ def create_app() -> Flask:
                 selector=selector,
                 attribute_name=attribute,
                 user_agent=(None if randomize_user_agent else user_agent),
-                 max_items=max_items,
+                max_items=max_items,
                 fast_mode=fast_mode,
                 detail_url_selector=detail_url_selector,
                 detail_url_attribute=detail_url_attribute,
@@ -335,6 +335,12 @@ def create_app() -> Flask:
         max_items_raw = request.args.get("max_items", "").strip()
         next_selector = request.args.get("next_selector", "").strip() or None
         max_pages_raw = request.args.get("max_pages", "").strip()
+        detail_url_selector = request.args.get("detail_url_selector", "").strip() or None
+        detail_url_attribute = request.args.get("detail_url_attribute", "").strip() or "href"
+        detail_image_selector = request.args.get("detail_image_selector", "").strip() or None
+        detail_image_attribute = request.args.get("detail_image_attribute", "").strip() or "src"
+        fast_mode = request.args.get("fast_mode") in {"1", "true", "on", "yes"}
+        randomize_user_agent = request.args.get("randomize_user_agent") in {"1", "true", "on", "yes"}
         respect_raw = request.args.get("respect_robots", "1").strip().lower()
         respect_robots = respect_raw in {"1", "true", "yes", "on"}
 
@@ -363,9 +369,14 @@ def create_app() -> Flask:
                 selector=selector,
                 next_selector=next_selector,
                 attribute_name=attribute,
-                user_agent=user_agent,
+                user_agent=(None if randomize_user_agent else user_agent),
                 max_items=max_items,
                 max_pages=max_pages,
+                fast_mode=fast_mode,
+                detail_url_selector=detail_url_selector,
+                detail_url_attribute=detail_url_attribute,
+                detail_image_selector=detail_image_selector,
+                detail_image_attribute=detail_image_attribute,
             )
         else:
             result = scrape_with_selector(
@@ -373,8 +384,13 @@ def create_app() -> Flask:
                 selector_type=selector_type,
                 selector=selector,
                 attribute_name=attribute,
-                user_agent=user_agent,
+                user_agent=(None if randomize_user_agent else user_agent),
                 max_items=max_items,
+                fast_mode=fast_mode,
+                detail_url_selector=detail_url_selector,
+                detail_url_attribute=detail_url_attribute,
+                detail_image_selector=detail_image_selector,
+                detail_image_attribute=detail_image_attribute,
             )
 
         image_items = [it for it in result.items if it.get("image_url")]
@@ -429,11 +445,7 @@ def create_app() -> Flask:
 
     return app
 
-
 app = create_app()
 
-
 if __name__ == "__main__":
-    app.run(host="127.0.0.1", port=5000, debug=True)
-
-
+    app.run(host="127.0.0.1", port=5000, debug=False)

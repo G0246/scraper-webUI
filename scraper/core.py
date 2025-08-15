@@ -1,4 +1,5 @@
 # scraper-webUI
+# A not very efficient web scraper.
 # core.py
 # By G0246
 
@@ -24,15 +25,14 @@ DEFAULT_USER_AGENT = (
 )
 
 RANDOM_UAS = [
-    # Common modern desktop UAs
+    # Common desktop UAs
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0 Safari/537.36",
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:127.0) Gecko/20100101 Firefox/127.0",
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 13_6) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15",
-    # A couple mobile UAs
+    # Mobile UAs
     "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Mobile Safari/537.36",
     "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1",
 ]
-
 
 @dataclass
 class ScrapedItem:
@@ -43,7 +43,6 @@ class ScrapedItem:
     attribute_value: Optional[str]
     html: str
 
-
 @dataclass
 class ScrapeResult:
     url: str
@@ -51,7 +50,6 @@ class ScrapeResult:
     selector_type: str
     items: List[dict]
     elapsed_ms: int
-
 
 def is_allowed_by_robots(url: str, user_agent: str = "scraper-webUI") -> bool:
     parsed = urlparse(url)
@@ -64,7 +62,6 @@ def is_allowed_by_robots(url: str, user_agent: str = "scraper-webUI") -> bool:
     except Exception:
         return True
 
-
 def _pick_user_agent(explicit_user_agent: Optional[str]) -> str:
     if explicit_user_agent:
         return explicit_user_agent
@@ -74,7 +71,6 @@ def _pick_user_agent(explicit_user_agent: Optional[str]) -> str:
     except Exception:
         return DEFAULT_USER_AGENT
 
-
 def _build_headers(user_agent: Optional[str]) -> dict:
     return {
         "User-Agent": _pick_user_agent(user_agent),
@@ -82,7 +78,6 @@ def _build_headers(user_agent: Optional[str]) -> dict:
         "Accept-Language": "en-US,en;q=0.9",
         "Cache-Control": "no-cache",
     }
-
 
 def create_session(user_agent: Optional[str], fast_mode: bool = False, retries: int = 2) -> requests.Session:
     session = requests.Session()
@@ -94,12 +89,10 @@ def create_session(user_agent: Optional[str], fast_mode: bool = False, retries: 
     session.mount("https://", adapter)
     return session
 
-
 def _http_get(url: str, session: requests.Session, timeout_seconds: Optional[int] = None) -> Response:
     response = session.get(url, timeout=(timeout_seconds if timeout_seconds is not None else 15))
     response.raise_for_status()
     return response
-
 
 def _resolve_link(base_url: str, element: bs4.Tag) -> Optional[str]:
     href = element.get("href")
@@ -107,12 +100,10 @@ def _resolve_link(base_url: str, element: bs4.Tag) -> Optional[str]:
         return urljoin(base_url, href)
     return None
 
-
 def _to_absolute_url(base_url: str, maybe_url: Optional[str]) -> Optional[str]:
     if not maybe_url:
         return None
     return urljoin(base_url, maybe_url)
-
 
 def _parse_srcset_take_first(srcset_value: str) -> Optional[str]:
     if not srcset_value:
@@ -120,7 +111,6 @@ def _parse_srcset_take_first(srcset_value: str) -> Optional[str]:
     # srcset can be like: "image1.jpg 1x, image2.jpg 2x"
     first_part = srcset_value.split(',')[0].strip()
     return first_part.split(' ')[0]
-
 
 def _extract_attribute(element: bs4.Tag, attribute_name: Optional[str], base_url: Optional[str] = None) -> Optional[str]:
     if not attribute_name:
@@ -139,7 +129,6 @@ def _extract_attribute(element: bs4.Tag, attribute_name: Optional[str], base_url
 
     return value
 
-
 def _is_image_url(url: Optional[str]) -> bool:
     if not url:
         return False
@@ -148,7 +137,6 @@ def _is_image_url(url: Optional[str]) -> bool:
         lowered.endswith(ext)
         for ext in (".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".svg", ".avif")
     )
-
 
 def _image_url_from_element(base_url: str, element: bs4.Tag, attribute_name: Optional[str]) -> Optional[str]:
     # Prefer <img src> or data-src/srcset
@@ -164,14 +152,13 @@ def _image_url_from_element(base_url: str, element: bs4.Tag, attribute_name: Opt
         if _is_image_url(candidate):
             return candidate
 
-    # As a fallback, if href points to an image
+    # Fallbacks: if href points to an image
     href = element.get("href")
     href_abs = _to_absolute_url(base_url, href)
     if _is_image_url(href_abs):
         return href_abs
 
     return None
-
 
 def _find_detail_url(base_url: str, element: bs4.Tag, detail_url_selector: Optional[str], detail_url_attribute: str) -> Optional[str]:
     # Prefer an explicit detail selector inside the element
@@ -200,8 +187,7 @@ def _elements_to_items(
     elements: Iterable[bs4.Tag],
     attribute_name: Optional[str],
     detail_url_selector: Optional[str] = None,
-    detail_url_attribute: str = "href",
-) -> List[dict]:
+    detail_url_attribute: str = "href",) -> List[dict]:
     items: List[dict] = []
     for index, element in enumerate(elements):
         text = element.get_text(strip=True)
@@ -223,7 +209,6 @@ def _elements_to_items(
         )
     return items
 
-
 def _extract_full_image_from_detail(session: requests.Session, detail_url: str, detail_image_selector: str, detail_image_attribute: str) -> Optional[str]:
     try:
         resp = session.get(detail_url, timeout=15)
@@ -236,7 +221,6 @@ def _extract_full_image_from_detail(session: requests.Session, detail_url: str, 
         return _to_absolute_url(detail_url, value)
     except Exception:
         return None
-
 
 def scrape_with_selector(
     url: str,
@@ -251,8 +235,7 @@ def scrape_with_selector(
     detail_image_attribute: str = "src",
     fast_mode: bool = False,
     progress_cb: Optional[Callable[[Dict[str, Any]], None]] = None,
-    is_canceled: Optional[Callable[[], bool]] = None,
-) -> ScrapeResult:
+    is_canceled: Optional[Callable[[], bool]] = None,) -> ScrapeResult:
     start_time = time.perf_counter()
     session = create_session(user_agent, fast_mode=fast_mode)
     response = _http_get(url, session=session)
@@ -303,7 +286,6 @@ def scrape_with_selector(
         elapsed_ms=elapsed_ms,
     )
 
-
 def _find_next_url(base_url: str, soup: BeautifulSoup, next_selector: Optional[str]) -> Optional[str]:
     if not next_selector:
         return None
@@ -315,7 +297,6 @@ def _find_next_url(base_url: str, soup: BeautifulSoup, next_selector: Optional[s
         return urljoin(base_url, href) if href else None
     except Exception:
         return None
-
 
 def scrape_paginated(
     url: str,
@@ -332,8 +313,7 @@ def scrape_paginated(
     detail_image_attribute: str = "src",
     fast_mode: bool = False,
     progress_cb: Optional[Callable[[Dict[str, Any]], None]] = None,
-    is_canceled: Optional[Callable[[], bool]] = None,
-) -> ScrapeResult:
+    is_canceled: Optional[Callable[[], bool]] = None,) -> ScrapeResult:
     start_time = time.perf_counter()
     session = create_session(user_agent, fast_mode=fast_mode)
 
@@ -418,5 +398,3 @@ def scrape_paginated(
         items=collected,
         elapsed_ms=elapsed_ms,
     )
-
-
