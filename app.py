@@ -92,11 +92,6 @@ def create_app() -> Flask:
         presets = load_presets_any(os.path.dirname(__file__))
         return render_template("index.html", presets=presets)
 
-    @app.route("/presets", methods=["GET"])
-    def api_list_presets():
-        presets = load_presets_any(os.path.dirname(__file__))
-        return {"ok": True, "presets": presets}
-
     @app.route("/presets/save", methods=["POST"])
     def api_save_preset():
         try:
@@ -118,6 +113,7 @@ def create_app() -> Flask:
         except Exception as exc:
             return {"ok": False, "error": str(exc)}, 400
 
+    # Results page
     @app.route("/results", methods=["GET"])
     def results():
         target_url = request.args.get("url", "").strip()
@@ -126,7 +122,7 @@ def create_app() -> Flask:
         attribute = request.args.get("attribute", "").strip() or None
         user_agent = request.args.get("user_agent", "").strip() or None
         max_items_raw = request.args.get("max_items", "").strip()
-        fast_mode = request.args.get("fast_mode") in {"1", "true", "on", "yes"}
+        fast_mode = (request.args.get("fast_mode", "").strip().lower() in {"1", "true", "on", "yes"})
         next_selector = request.args.get("next_selector", "").strip() or None
         max_pages_raw = request.args.get("max_pages", "").strip()
         detail_url_selector = request.args.get("detail_url_selector", "").strip() or None
@@ -135,7 +131,7 @@ def create_app() -> Flask:
         detail_image_attribute = request.args.get("detail_image_attribute", "").strip() or "src"
         respect_raw = request.args.get("respect_robots", "1").strip().lower()
         respect_robots = respect_raw in {"1", "true", "yes", "on"}
-        randomize_user_agent = request.args.get("randomize_user_agent") in {"1", "true", "on", "yes"}
+        randomize_user_agent = (request.args.get("randomize_user_agent", "").strip().lower() in {"1", "true", "on", "yes"})
 
         try:
             max_items: Optional[int] = int(max_items_raw) if max_items_raw else None
@@ -153,9 +149,7 @@ def create_app() -> Flask:
             error_message = "URL and selector are required."
         else:
             try:
-                # Detect client disconnect
                 def is_canceled() -> bool:
-                    # Unfinished hook
                     return False
                 if respect_robots and not is_allowed_by_robots(target_url, user_agent or "scraper-webUI"):
                     error_message = "Scraping is disallowed by robots.txt for the provided URL."
@@ -218,6 +212,7 @@ def create_app() -> Flask:
             error_message=error_message,
         )
 
+    # Export functionality
     @app.route("/export", methods=["GET"])
     def export():
         export_format = request.args.get("format", "csv").strip().lower()
@@ -227,7 +222,7 @@ def create_app() -> Flask:
         attribute = request.args.get("attribute", "").strip() or None
         user_agent = request.args.get("user_agent", "").strip() or None
         max_items_raw = request.args.get("max_items", "").strip()
-        fast_mode = request.args.get("fast_mode") in {"1", "true", "on", "yes"}
+        fast_mode = (request.args.get("fast_mode", "").strip().lower() in {"1", "true", "on", "yes"})
         next_selector = request.args.get("next_selector", "").strip() or None
         max_pages_raw = request.args.get("max_pages", "").strip()
         detail_url_selector = request.args.get("detail_url_selector", "").strip() or None
@@ -236,7 +231,7 @@ def create_app() -> Flask:
         detail_image_attribute = request.args.get("detail_image_attribute", "").strip() or "src"
         respect_raw = request.args.get("respect_robots", "1").strip().lower()
         respect_robots = respect_raw in {"1", "true", "yes", "on"}
-        randomize_user_agent = request.args.get("randomize_user_agent") in {"1", "true", "on", "yes"}
+        randomize_user_agent = (request.args.get("randomize_user_agent", "").strip().lower() in {"1", "true", "on", "yes"})
 
         try:
             max_items: Optional[int] = int(max_items_raw) if max_items_raw else None
@@ -368,8 +363,8 @@ def create_app() -> Flask:
         detail_url_attribute = request.args.get("detail_url_attribute", "").strip() or "href"
         detail_image_selector = request.args.get("detail_image_selector", "").strip() or None
         detail_image_attribute = request.args.get("detail_image_attribute", "").strip() or "src"
-        fast_mode = request.args.get("fast_mode") in {"1", "true", "on", "yes"}
-        randomize_user_agent = request.args.get("randomize_user_agent") in {"1", "true", "on", "yes"}
+        fast_mode = (request.args.get("fast_mode", "").strip().lower() in {"1", "true", "on", "yes"})
+        randomize_user_agent = (request.args.get("randomize_user_agent", "").strip().lower() in {"1", "true", "on", "yes"})
         respect_raw = request.args.get("respect_robots", "1").strip().lower()
         respect_robots = respect_raw in {"1", "true", "yes", "on"}
 
@@ -390,7 +385,6 @@ def create_app() -> Flask:
             flash("Download blocked by robots.txt.", "error")
             return redirect(url_for("index"))
 
-        # Re-run scrape to get current images
         if next_selector or max_pages:
             result = scrape_paginated(
                 url=target_url,
@@ -443,7 +437,6 @@ def create_app() -> Flask:
                 return idx, img_url, None
 
         with zipfile.ZipFile(zip_buffer, mode="w", compression=zipfile.ZIP_DEFLATED) as zf:
-            # Fetch concurrently for speed
             with concurrent.futures.ThreadPoolExecutor(max_workers=8) as ex:
                 for idx, img_url, resp in ex.map(fetch, [(i, it["image_url"]) for i, it in enumerate(image_items)]):
                     if resp is None:
