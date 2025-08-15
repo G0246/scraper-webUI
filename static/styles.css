@@ -105,6 +105,10 @@ button,
   display: inline-block;
 }
 
+.btn-danger {
+  background: linear-gradient(180deg, var(--danger), #c63d3d);
+}
+
 button:hover,
 .btn:hover {
   filter: brightness(1.05);
