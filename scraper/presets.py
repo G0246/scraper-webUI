@@ -50,3 +50,65 @@ def load_presets_any(base_dir: str) -> List[Dict[str, str]]:
     return []
 
 
+def _presets_path(base_dir: str) -> str:
+    return os.path.join(base_dir, "presets.json")
+
+
+def _write_presets(base_dir: str, presets: List[Dict[str, str]]) -> None:
+    path = _presets_path(base_dir)
+    tmp_path = path + ".tmp"
+    # Ensure directory exists
+    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+    with open(tmp_path, "w", encoding="utf-8") as f:
+        json.dump(presets, f, ensure_ascii=False, indent=2)
+        f.write("\n")
+    # Atomic-ish replace on most platforms
+    try:
+        os.replace(tmp_path, path)
+    except Exception:
+        # Fallback
+        try:
+            os.remove(path)
+        except Exception:
+            pass
+        os.rename(tmp_path, path)
+
+
+def save_or_update_preset(base_dir: str, preset: Dict[str, str]) -> Dict[str, str]:
+    """Save a new preset or update an existing one by id. Returns the normalized preset.
+
+    Required fields: id, name. Other fields will be normalized to strings.
+    """
+    if not isinstance(preset, dict):
+        raise ValueError("preset must be a dict")
+    normalized = _normalize_preset(preset)
+    pid = (normalized.get("id") or "").strip()
+    pname = (normalized.get("name") or "").strip()
+    if not pid or not pname:
+        raise ValueError("Both 'id' and 'name' are required")
+
+    items = load_presets_any(base_dir)
+    updated = False
+    for i, it in enumerate(items):
+        if it.get("id") == pid:
+            items[i] = normalized
+            updated = True
+            break
+    if not updated:
+        items.append(normalized)
+    _write_presets(base_dir, items)
+    return normalized
+
+
+def delete_preset(base_dir: str, preset_id: str) -> bool:
+    preset_id = (preset_id or "").strip()
+    if not preset_id:
+        raise ValueError("preset_id is required")
+    items = load_presets_any(base_dir)
+    new_items = [it for it in items if it.get("id") != preset_id]
+    if len(new_items) == len(items):
+        return False
+    _write_presets(base_dir, new_items)
+    return True
+
+
