@@ -23,9 +23,10 @@ from scraper.core import (
     scrape_paginated,
     ScrapeResult,
 )
-from scraper.presets import load_presets_any
 
+from scraper.presets import load_presets_any, save_or_update_preset, delete_preset
 
+# Flask route handlers
 def create_app() -> Flask:
     app = Flask(__name__)
     app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev-secret-change-me")
@@ -91,6 +92,32 @@ def create_app() -> Flask:
         presets = load_presets_any(os.path.dirname(__file__))
         return render_template("index.html", presets=presets)
 
+    @app.route("/presets", methods=["GET"])
+    def api_list_presets():
+        presets = load_presets_any(os.path.dirname(__file__))
+        return {"ok": True, "presets": presets}
+
+    @app.route("/presets/save", methods=["POST"])
+    def api_save_preset():
+        try:
+            data = request.get_json(silent=True) or {}
+            normalized = save_or_update_preset(os.path.dirname(__file__), data)
+            return {"ok": True, "preset": normalized}
+        except Exception as exc:
+            return {"ok": False, "error": str(exc)}, 400
+
+    @app.route("/presets/delete", methods=["POST"])
+    def api_delete_preset():
+        try:
+            data = request.get_json(silent=True) or {}
+            pid = (data.get("id") or "").strip()
+            if not pid:
+                return {"ok": False, "error": "id is required"}, 400
+            existed = delete_preset(os.path.dirname(__file__), pid)
+            return {"ok": True, "deleted": existed}
+        except Exception as exc:
+            return {"ok": False, "error": str(exc)}, 400
+
     @app.route("/results", methods=["GET"])
     def results():
         target_url = request.args.get("url", "").strip()
@@ -118,7 +145,6 @@ def create_app() -> Flask:
             max_pages: Optional[int] = int(max_pages_raw) if max_pages_raw else None
         except ValueError:
             max_pages = None
-        timeout_seconds: Optional[int] = None
 
         error_message: Optional[str] = None
         result: Optional[ScrapeResult] = None
@@ -166,7 +192,7 @@ def create_app() -> Flask:
                             detail_image_selector=detail_image_selector,
                             detail_image_attribute=detail_image_attribute,
                         )
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 error_message = f"Error while scraping: {exc}"
 
         return render_template(
@@ -220,7 +246,6 @@ def create_app() -> Flask:
             max_pages: Optional[int] = int(max_pages_raw) if max_pages_raw else None
         except ValueError:
             max_pages = None
-        timeout_seconds: Optional[int] = None
 
         if not target_url or not selector:
             flash("URL and selector are required to export.", "error")
@@ -308,7 +333,7 @@ def create_app() -> Flask:
             headers = {"User-Agent": request.args.get("user_agent", "scraper-webUI")}
             resp = requests.get(image_url, headers=headers, timeout=30)
             resp.raise_for_status()
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             flash(f"Failed to fetch image: {exc}", "error")
             return redirect(url_for("index"))
 
