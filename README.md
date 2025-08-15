@@ -1,6 +1,6 @@
 # scraper-webUI
 
-A very minimal Python web scraper with a web UI, not very efficient.
+A very simple Python web scraper with a web UI, not very efficient.
 
 ## Features
 
