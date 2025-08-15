@@ -11,7 +11,7 @@ A very minimal Python web scraper with a web UI, not very efficient.
 
 ## Quickstart
 
-1. Download the latest [release](https://github.com/G0246/scraper-webUI/releases/latest) and unzip it
+1. Clone the repository.
 
 2. Install dependencies:
 
