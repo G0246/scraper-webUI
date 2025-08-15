@@ -19,8 +19,8 @@
     "attribute": "",
     "user_agent": "",
     "max_items": "",
-    "next_selector": "",
-    "max_pages": "",
+    "next_selector": "li.next > a",
+    "max_pages": "5",
     "respect_robots": "1"
   },
   {
@@ -31,8 +31,8 @@
     "attribute": "src",
     "user_agent": "",
     "max_items": "50",
-    "next_selector": "",
-    "max_pages": "",
+    "next_selector": "li.next > a",
+    "max_pages": "5",
     "respect_robots": "1"
   },
   {
@@ -46,8 +46,7 @@
     "next_selector": "a[alt=\"next\"]",
     "max_pages": "5",
     "respect_robots": "1"
-  }
-  ,
+  },
   {
     "id": "safebooru_full",
     "name": "Safebooru (full images via detail)",
