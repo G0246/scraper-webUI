@@ -4,10 +4,15 @@ A very simple Python web scraper with a web UI, not very efficient.
 
 ## Features
 
-- CSS selector based scraping (via BeautifulSoup)
-- Optional attribute extraction (e.g., `src`, `data-id`)
+- CSS selector-based scraping (BeautifulSoup + lxml)
+- Optional attribute extraction (e.g., `href`, `src`, `data-id`)
+- Pagination support via CSS selector
+- Detail-page image enrichment (fetch full-size images from detail pages)
 - Robots.txt check (opt-out)
-- Export to CSV, JSON or direct download for images
+- Export results to CSV or JSON
+- Download all detected images as a ZIP
+- Random User-Agent
+- Experimental fast mode (fewer retries, shorter backoff)
 
 ## Quickstart
 
@@ -15,17 +20,17 @@ A very simple Python web scraper with a web UI, not very efficient.
 
 2. Install dependencies:
 
-```
+```bash
 pip install -r requirements.txt
 ```
 
 3. Run it:
 
-```
+```bash
 python app.py
 ```
 
-3. Open `http://127.0.0.1:5000` in your browser.
+4. Open http://127.0.0.1:5000 in your browser.
 
 ## Direct URL usage
 
@@ -37,7 +42,7 @@ GET `/results` with params:
 - `url`: target page to scrape (required)
 - `selector_type`: `css` (default)
 - `selector`: CSS selector to match (required)
-- `attribute`: optional attribute to extract from each element (e.g. `href`, `src`)
+- `attribute`: optional attribute to extract from each element (e.g., `href`, `src`)
 - `user_agent`: optional custom UA
 - `max_items`: optional cap (integer)
 - `respect_robots`: `1`/`0`, `true`/`false` (default `1`)
@@ -47,6 +52,8 @@ GET `/results` with params:
 - `detail_url_attribute`: attribute for the detail link (default `href`)
 - `detail_image_selector`: CSS selector on the detail page to find the full image
 - `detail_image_attribute`: attribute for the full image (default `src`)
+- `fast_mode`: `1`/`true` to reduce retries and backoff
+- `randomize_user_agent`: `1`/`true` to use a random common UA (overrides provided UA)
 
 Examples:
 
@@ -70,9 +77,8 @@ Examples:
 
 ### Download images
 
-- Single image: `/download-image?url=FULL_IMAGE_URL`
-- All detected images as ZIP (uses same scrape params as `/results`):
-  - `/download-all-images?url=...&selector=...&detail_image_selector=...&...`
+- Single image: `/download-image?url=FULL_IMAGE_URL` (optionally add `user_agent=...` to set the request UA)
+- All detected images as ZIP (supports the same params as `/results`, including pagination and detail-page selectors):
 
 ## Presets (JSON)
 
@@ -86,9 +92,10 @@ Editing `presets.json` updates the dropdown on the home page automatically.
 
 ## Usage tips
 
-- Use a broad selector like `a` to list links; add attribute `href` or leave blank to see text.
+- Try selector `a` to list links; add attribute `href` or leave blank to see text.
+- For image previews + download buttons, use selector `img` or a selector whose attribute resolves to an image URL.
 - Respect target site Terms of Service. Keep request volume low.
-- If you need XPATH, wire in `parsel`/`lxml` and extend `scraper/core.py`.
+- XPath is not supported currently; use CSS selectors.
 
 ## Licensing
 ```
