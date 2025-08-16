@@ -25,13 +25,13 @@ PRESET_FIELDS = [
     "detail_image_attribute",
 ]
 
+# Ensure all fields are strings and strip whitespace.
 def _normalize_preset(obj: Dict[str, object]) -> Dict[str, str]:
     normalized: Dict[str, str] = {}
     for field in PRESET_FIELDS:
         value = obj.get(field, "") if isinstance(obj, dict) else ""
         normalized[field] = str(value).strip() if value is not None else ""
     return normalized
-
 
 def load_presets_any(base_dir: str) -> List[Dict[str, str]]:
     json_path = os.path.join(base_dir, "presets.json")
@@ -47,10 +47,8 @@ def load_presets_any(base_dir: str) -> List[Dict[str, str]]:
         return []
     return []
 
-
 def _presets_path(base_dir: str) -> str:
     return os.path.join(base_dir, "presets.json")
-
 
 def _write_presets(base_dir: str, presets: List[Dict[str, str]]) -> None:
     path = _presets_path(base_dir)
@@ -71,12 +69,7 @@ def _write_presets(base_dir: str, presets: List[Dict[str, str]]) -> None:
             pass
         os.rename(tmp_path, path)
 
-
 def save_or_update_preset(base_dir: str, preset: Dict[str, str]) -> Dict[str, str]:
-    """Save a new preset or update an existing one by id. Returns the normalized preset.
-
-    Required fields: id, name. Other fields will be normalized to strings.
-    """
     if not isinstance(preset, dict):
         raise ValueError("preset must be a dict")
     normalized = _normalize_preset(preset)
@@ -97,7 +90,6 @@ def save_or_update_preset(base_dir: str, preset: Dict[str, str]) -> Dict[str, st
     _write_presets(base_dir, items)
     return normalized
 
-
 def delete_preset(base_dir: str, preset_id: str) -> bool:
     preset_id = (preset_id or "").strip()
     if not preset_id:
@@ -108,5 +100,3 @@ def delete_preset(base_dir: str, preset_id: str) -> bool:
         return False
     _write_presets(base_dir, new_items)
     return True
-
-
