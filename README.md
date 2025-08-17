@@ -5,14 +5,14 @@ A very simple Python web scraper with a web UI, not very efficient.
 ## Features
 
 - CSS selector-based scraping (BeautifulSoup + lxml)
-- Optional attribute extraction (e.g., `href`, `src`, `data-id`)
-- Pagination support via CSS selector
-- Detail-page image enrichment (fetch full-size images from detail pages)
-- Robots.txt check (opt-out)
+- Optional attribute extraction (Examples: `href`, `src`, `data-id`)
+- Pagination support
+- Detail-page image enrichment (Fetch full-size images from detail pages)
+- Robots.txt check (Can opt-out)
 - Export results to CSV or JSON
 - Download all detected images as a ZIP
 - Random User-Agent
-- Experimental fast mode (fewer retries, shorter backoff)
+- Experimental fast mode (Fewer retries, shorter backoff)
 
 ## Quickstart
 
