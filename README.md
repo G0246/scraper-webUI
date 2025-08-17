@@ -82,7 +82,7 @@ Examples:
 
 ## Presets (JSON)
 
-Presets are loaded from `presets.json` at startup. Presets parms are relatively straightforward:
+Presets are loaded from `presets.json` at startup. Presets params are relatively straightforward:
 - `id`
 - `name`
 - `url`
