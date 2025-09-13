@@ -1,18 +1,18 @@
 # scraper-webUI
 
-A very simple Python web scraper with a web UI, not very efficient.
+A very simple Python web scraper with web UI using Flask, not very efficient.
 
 ## Features
 
 - CSS selector-based scraping (BeautifulSoup + lxml)
-- Optional attribute extraction (e.g., `href`, `src`, `data-id`)
-- Pagination support via CSS selector
-- Detail-page image enrichment (fetch full-size images from detail pages)
-- Robots.txt check (opt-out)
+- Optional attribute extraction (Examples: `href`, `src`, `data-id`)
+- Pagination support
+- Detail-page image enrichment (Fetch full-size images from detail pages)
+- Robots.txt check (Can opt-out)
 - Export results to CSV or JSON
 - Download all detected images as a ZIP
 - Random User-Agent
-- Experimental fast mode (fewer retries, shorter backoff)
+- Experimental fast mode (Fewer retries, shorter backoff)
 
 ## Quickstart
 
@@ -82,20 +82,30 @@ Examples:
 
 ## Presets (JSON)
 
-Presets are loaded from `presets.json` at startup. Each entry is an object with:
+Presets are loaded from `presets.json` at startup. Presets params are relatively straightforward:
+- `id`
+- `name`
+- `url`
+- `selector`
+- `attribute`
+- `user_agent`
+- `max_items`
+- `next_selector`
+- `max_pages`
+- `respect_robots`
+- `detail_url_selector`
+- `detail_url_attribute`
+- `detail_image_selector`
+- `detail_image_attribute`
 
-- `id`, `name`, `url`, `selector`, `attribute`, `user_agent`, `max_items`,
-  `next_selector`, `max_pages`, `respect_robots`, `detail_url_selector`,
-  `detail_url_attribute`, `detail_image_selector`, `detail_image_attribute`.
-
-Editing `presets.json` updates the dropdown on the home page automatically.
+Editing `presets.json` will update the dropdown on the home page after a reload.
 
 ## Usage tips
 
 - Try selector `a` to list links; add attribute `href` or leave blank to see text.
 - For image previews + download buttons, use selector `img` or a selector whose attribute resolves to an image URL.
 - Respect target site Terms of Service. Keep request volume low.
-- XPath is not supported currently; use CSS selectors.
+- XPath is not supported currently.
 
 ## Licensing
 ```
