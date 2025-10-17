@@ -46,11 +46,11 @@ class ScrapeResult:
 def is_allowed_by_robots(url: str, user_agent: str = "scraper-webUI") -> bool:
     parsed = urlparse(url)
     robots_url = f"{parsed.scheme}://{parsed.netloc}/robots.txt"
-    rp = robotparser.RobotFileParser()
+    robot_bouncer = robotparser.RobotFileParser()
     try:
-        rp.set_url(robots_url)
-        rp.read()
-        return rp.can_fetch(user_agent, url)
+        robot_bouncer.set_url(robots_url)
+        robot_bouncer.read()
+        return robot_bouncer.can_fetch(user_agent, url)
     except Exception:
         return True
 
@@ -75,8 +75,8 @@ def create_session(user_agent: Optional[str], fast_mode: bool = False, retries: 
     session = requests.Session()
     session.headers.update(_build_headers(user_agent))
     total_retries = 0 if fast_mode else max(0, retries)
-    retry = Retry(total=total_retries, backoff_factor=(0.15 if fast_mode else 0.3), status_forcelist=[429, 500, 502, 503, 504])
-    adapter = HTTPAdapter(pool_connections=20, pool_maxsize=50, max_retries=retry)
+    retry_strategy = Retry(total=total_retries, backoff_factor=(0.15 if fast_mode else 0.3), status_forcelist=[429, 500, 502, 503, 504])
+    adapter = HTTPAdapter(pool_connections=20, pool_maxsize=50, max_retries=retry_strategy)
     session.mount("http://", adapter)
     session.mount("https://", adapter)
     return session
@@ -101,8 +101,8 @@ def _parse_srcset_take_first(srcset_value: str) -> Optional[str]:
     if not srcset_value:
         return None
     # srcset can be like: "image1.jpg 1x, image2.jpg 2x"
-    first_part = srcset_value.split(',')[0].strip()
-    return first_part.split(' ')[0]
+    first_course = srcset_value.split(',')[0].strip()
+    return first_course.split(' ')[0]
 
 def _extract_attribute(element: bs4.Tag, attribute_name: Optional[str], base_url: Optional[str] = None) -> Optional[str]:
     if not attribute_name:
@@ -140,9 +140,9 @@ def _image_url_from_element(base_url: str, element: bs4.Tag, attribute_name: Opt
 
     # If a specific attribute is requested and looks like an image URL?
     if attribute_name:
-        candidate = _extract_attribute(element, attribute_name, base_url)
-        if _is_image_url(candidate):
-            return candidate
+        maybe_an_image = _extract_attribute(element, attribute_name, base_url)
+        if _is_image_url(maybe_an_image):
+            return maybe_an_image
 
     # Fallback: if href points to an image
     href = element.get("href")
@@ -179,7 +179,10 @@ def _elements_to_items(
     elements: Iterable[bs4.Tag],
     attribute_name: Optional[str],
     detail_url_selector: Optional[str] = None,
-    detail_url_attribute: str = "href",) -> List[dict]:
+    detail_url_attribute: str = "href",
+    detail_image_selector: Optional[str] = None,
+    detail_image_attribute: str = "src",
+) -> List[dict]:
     items: List[dict] = []
     for index, element in enumerate(elements):
         text = element.get_text(strip=True)
@@ -312,10 +315,17 @@ def scrape_paginated(
     collected: List[dict] = []
     pages_visited = 0
     current_url = url
+    url_graveyard: set = set()  # Track visited URLs to avoid infinite loops
 
     while current_url:
         if is_canceled and is_canceled():
             raise RuntimeError("Cancelled")
+
+        # Check if we've been here before (avoid infinite loops)
+        if current_url in url_graveyard:
+            break
+        url_graveyard.add(current_url)
+
         response = _http_get(current_url, session=session)
         html = response.text
         soup = BeautifulSoup(html, "lxml")

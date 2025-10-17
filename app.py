@@ -144,6 +144,7 @@ def create_app() -> Flask:
 
         error_message: Optional[str] = None
         result: Optional[ScrapeResult] = None
+        breadcrumb_trail: List[dict] = []
 
         if not target_url or not selector:
             error_message = "URL and selector are required."
@@ -151,6 +152,8 @@ def create_app() -> Flask:
             try:
                 def is_canceled() -> bool:
                     return False
+                def track_the_journey(event: dict) -> None:
+                    breadcrumb_trail.append(event)
                 if respect_robots and not is_allowed_by_robots(target_url, user_agent or "scraper-webUI"):
                     error_message = "Scraping is disallowed by robots.txt for the provided URL."
                 else:
@@ -166,6 +169,7 @@ def create_app() -> Flask:
                             max_pages=max_pages,
                             fast_mode=fast_mode,
                             is_canceled=is_canceled,
+                            progress_cb=track_the_journey,
                             detail_url_selector=detail_url_selector,
                             detail_url_attribute=detail_url_attribute,
                             detail_image_selector=detail_image_selector,
@@ -181,6 +185,7 @@ def create_app() -> Flask:
                             max_items=max_items,
                             fast_mode=fast_mode,
                             is_canceled=is_canceled,
+                            progress_cb=track_the_journey,
                             detail_url_selector=detail_url_selector,
                             detail_url_attribute=detail_url_attribute,
                             detail_image_selector=detail_image_selector,
@@ -210,6 +215,7 @@ def create_app() -> Flask:
             },
             result=result,
             error_message=error_message,
+            progress_events=breadcrumb_trail,
         )
 
     # Export functionality
@@ -250,6 +256,9 @@ def create_app() -> Flask:
             flash("Export blocked by robots.txt.", "error")
             return redirect(url_for("index"))
 
+        def nobody_canceled_yet() -> bool:
+            return False
+
         if next_selector or max_pages:
             result = scrape_paginated(
                 url=target_url,
@@ -261,6 +270,7 @@ def create_app() -> Flask:
                 max_items=max_items,
                 max_pages=max_pages,
                 fast_mode=fast_mode,
+                is_canceled=nobody_canceled_yet,
                 detail_url_selector=detail_url_selector,
                 detail_url_attribute=detail_url_attribute,
                 detail_image_selector=detail_image_selector,
@@ -275,6 +285,7 @@ def create_app() -> Flask:
                 user_agent=(None if randomize_user_agent else user_agent),
                 max_items=max_items,
                 fast_mode=fast_mode,
+                is_canceled=nobody_canceled_yet,
                 detail_url_selector=detail_url_selector,
                 detail_url_attribute=detail_url_attribute,
                 detail_image_selector=detail_image_selector,
@@ -283,8 +294,8 @@ def create_app() -> Flask:
 
         if export_format == "json":
             import json
-            json_data = json.dumps([item for item in result.items], ensure_ascii=False, indent=2)
-            buffer = io.BytesIO(json_data.encode("utf-8"))
+            json_goodies = json.dumps([item for item in result.items], ensure_ascii=False, indent=2)
+            buffer = io.BytesIO(json_goodies.encode("utf-8"))
             buffer.seek(0)
             return send_file(
                 buffer,
@@ -296,14 +307,14 @@ def create_app() -> Flask:
         # Default to CSV
         import csv
         text_buffer = io.StringIO()
-        writer = csv.DictWriter(
+        csv_wizard = csv.DictWriter(
             text_buffer,
             fieldnames=["index", "tag", "text", "href", "attribute_value", "image_url", "html"],
             extrasaction="ignore",
         )
-        writer.writeheader()
+        csv_wizard.writeheader()
         for item in result.items:
-            writer.writerow(item)
+            csv_wizard.writerow(item)
         data = text_buffer.getvalue().encode("utf-8")
         buffer = io.BytesIO(data)
         buffer.seek(0)
@@ -385,6 +396,9 @@ def create_app() -> Flask:
             flash("Download blocked by robots.txt.", "error")
             return redirect(url_for("index"))
 
+        def still_not_canceled() -> bool:
+            return False
+
         if next_selector or max_pages:
             result = scrape_paginated(
                 url=target_url,
@@ -396,6 +410,7 @@ def create_app() -> Flask:
                 max_items=max_items,
                 max_pages=max_pages,
                 fast_mode=fast_mode,
+                is_canceled=still_not_canceled,
                 detail_url_selector=detail_url_selector,
                 detail_url_attribute=detail_url_attribute,
                 detail_image_selector=detail_image_selector,
@@ -410,14 +425,15 @@ def create_app() -> Flask:
                 user_agent=(None if randomize_user_agent else user_agent),
                 max_items=max_items,
                 fast_mode=fast_mode,
+                is_canceled=still_not_canceled,
                 detail_url_selector=detail_url_selector,
                 detail_url_attribute=detail_url_attribute,
                 detail_image_selector=detail_image_selector,
                 detail_image_attribute=detail_image_attribute,
             )
 
-        image_items = [it for it in result.items if it.get("image_url")]
-        if not image_items:
+        treasure_trove = [it for it in result.items if it.get("image_url")]
+        if not treasure_trove:
             flash("No images detected to download.", "error")
             return redirect(url_for("results", **request.args))
 
@@ -438,7 +454,7 @@ def create_app() -> Flask:
 
         with zipfile.ZipFile(zip_buffer, mode="w", compression=zipfile.ZIP_DEFLATED) as zf:
             with concurrent.futures.ThreadPoolExecutor(max_workers=8) as ex:
-                for idx, img_url, resp in ex.map(fetch, [(i, it["image_url"]) for i, it in enumerate(image_items)]):
+                for idx, img_url, resp in ex.map(fetch, [(i, it["image_url"]) for i, it in enumerate(treasure_trove)]):
                     if resp is None:
                         continue
                     parsed = urlparse(img_url)

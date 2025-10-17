@@ -62,7 +62,7 @@ def _write_presets(base_dir: str, presets: List[Dict[str, str]]) -> None:
     try:
         os.replace(tmp_path, path)
     except Exception:
-        # Fallback
+        # Fallback for stubborn operating systems
         try:
             os.remove(path)
         except Exception:
