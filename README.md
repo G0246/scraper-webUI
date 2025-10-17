@@ -2,16 +2,18 @@
 
 A very simple Python web scraper with web UI using Flask, not very efficient.
 
+**This application is intended solely for my personal educational use and is not for professional purposes.**
+
 ## Features
 
 - CSS selector-based scraping (BeautifulSoup + lxml)
 - Optional attribute extraction (Examples: `href`, `src`, `data-id`)
 - Pagination support
 - Detail-page image enrichment (Fetch full-size images from detail pages)
-- Robots.txt check (Can opt-out)
+- Robots.txt check (Optional)
 - Export results to CSV or JSON
 - Download all detected images as a ZIP
-- Random User-Agent
+- Random User-Agent (Not fully implemented)
 - Experimental fast mode (Fewer retries, shorter backoff)
 
 ## Quickstart
@@ -105,7 +107,7 @@ Editing `presets.json` will update the dropdown on the home page after a reload.
 - Try selector `a` to list links; add attribute `href` or leave blank to see text.
 - For image previews + download buttons, use selector `img` or a selector whose attribute resolves to an image URL.
 - Respect target site Terms of Service. Keep request volume low.
-- XPath is not supported currently.
+- XPath is not supported currently (Soon?)
 
 ## Licensing
 ```
