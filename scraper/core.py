@@ -3,8 +3,8 @@
 # core.py
 # By G0246
 
-# Improvements are needed
-# The implementation of random user agents will be changed.
+# User agent generation is now dynamic.
+# No more hardcoded lists - fresh user agents on every request.
 
 from __future__ import annotations
 
@@ -21,19 +21,43 @@ from urllib import robotparser
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
+# Import the dynamic user agent generator
+from scraper.gen_UA import get_random_user_agent, UserAgentGenerator
+
 DEFAULT_USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
     "AppleWebKit/537.36 (KHTML, like Gecko) "
     "Chrome/126.0 Safari/537.36"
 )
 
-RANDOM_UAS = [
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0 Safari/537.36",
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:127.0) Gecko/20100101 Firefox/127.0",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 13_6) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15",
-    "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Mobile Safari/537.36",
-    "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1",
+# Keep the old lists for backwards compatibility / fallback
+# But they're not actively used anymore when randomization is enabled
+DESKTOP_USER_AGENTS = [
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
 ]
+
+MOBILE_USER_AGENTS = [
+    "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Mobile Safari/537.36",
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
+]
+
+def get_user_agent_stats() -> Dict[str, Any]:
+    """
+    Get statistics about the user agent generation system.
+    Now returns info about the dynamic generator instead of static lists.
+    """
+    return {
+        "mode": "dynamic",
+        "description": "User agents are generated fresh on every request using common patterns",
+        "desktop_browsers": ["Chrome", "Firefox", "Safari", "Edge"],
+        "mobile_browsers": ["Chrome (Android)", "Safari (iOS)", "Safari (iPad)", "Firefox (Android)"],
+        "os_platforms": ["Windows", "macOS", "Linux", "Android", "iOS"],
+        "note": "Each request generates a unique user agent with random versions",
+        "fallback_desktop": len(DESKTOP_USER_AGENTS),
+        "fallback_mobile": len(MOBILE_USER_AGENTS),
+    }
 
 @dataclass
 class ScrapeResult:
@@ -54,26 +78,43 @@ def is_allowed_by_robots(url: str, user_agent: str = "scraper-webUI") -> bool:
     except Exception:
         return True
 
-def _pick_user_agent(explicit_user_agent: Optional[str]) -> str:
+def _pick_user_agent(explicit_user_agent: Optional[str], prefer_mobile: bool = False) -> str:
     if explicit_user_agent:
         return explicit_user_agent
+
     try:
-        import random
-        return random.choice(RANDOM_UAS)
+        # Use the dynamic generator instead of hardcoded lists
+        return get_random_user_agent(prefer_mobile=prefer_mobile)
     except Exception:
+        # Fallback to default if something goes wrong
         return DEFAULT_USER_AGENT
 
-def _build_headers(user_agent: Optional[str]) -> dict:
-    return {
-        "User-Agent": _pick_user_agent(user_agent),
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+def _build_headers(user_agent: Optional[str], prefer_mobile: bool = False) -> dict:
+    picked_ua = _pick_user_agent(user_agent, prefer_mobile)
+
+    # Adjust Accept headers based on whether it's mobile
+    is_mobile = "Mobile" in picked_ua or "Android" in picked_ua
+
+    headers = {
+        "User-Agent": picked_ua,
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
         "Accept-Language": "en-US,en;q=0.9",
-        "Cache-Control": "no-cache",
+        # Don't set Accept-Encoding manually - let requests handle it automatically
+        # This ensures automatic decompression of gzip/deflate/br responses
+        "DNT": "1",
+        "Connection": "keep-alive",
+        "Upgrade-Insecure-Requests": "1",
     }
 
-def create_session(user_agent: Optional[str], fast_mode: bool = False, retries: int = 2) -> requests.Session:
+    # Add mobile-specific headers
+    if is_mobile:
+        headers["Viewport-Width"] = "360"
+
+    return headers
+
+def create_session(user_agent: Optional[str], fast_mode: bool = False, retries: int = 2, prefer_mobile: bool = False) -> requests.Session:
     session = requests.Session()
-    session.headers.update(_build_headers(user_agent))
+    session.headers.update(_build_headers(user_agent, prefer_mobile))
     total_retries = 0 if fast_mode else max(0, retries)
     retry_strategy = Retry(total=total_retries, backoff_factor=(0.15 if fast_mode else 0.3), status_forcelist=[429, 500, 502, 503, 504])
     adapter = HTTPAdapter(pool_connections=20, pool_maxsize=50, max_retries=retry_strategy)
@@ -230,7 +271,8 @@ def scrape_with_selector(
     detail_image_attribute: str = "src",
     fast_mode: bool = False,
     progress_cb: Optional[Callable[[Dict[str, Any]], None]] = None,
-    is_canceled: Optional[Callable[[], bool]] = None,) -> ScrapeResult:
+    is_canceled: Optional[Callable[[], bool]] = None
+) -> ScrapeResult:
     start_time = time.perf_counter()
     session = create_session(user_agent, fast_mode=fast_mode)
     response = _http_get(url, session=session)
@@ -250,7 +292,7 @@ def scrape_with_selector(
         # Slice early to avoid converting unnecessary elements
         elements = elements[: max(0, max_items)]
 
-    items = _elements_to_items(url, elements, attribute_name, detail_url_selector, detail_url_attribute)
+    items = _elements_to_items(url, elements, attribute_name, detail_url_selector, detail_url_attribute, detail_image_selector, detail_image_attribute)
 
     # Optionally enrich/override image_url by visiting detail pages
     if detail_image_selector:
@@ -308,7 +350,8 @@ def scrape_paginated(
     detail_image_attribute: str = "src",
     fast_mode: bool = False,
     progress_cb: Optional[Callable[[Dict[str, Any]], None]] = None,
-    is_canceled: Optional[Callable[[], bool]] = None,) -> ScrapeResult:
+    is_canceled: Optional[Callable[[], bool]] = None
+) -> ScrapeResult:
     start_time = time.perf_counter()
     session = create_session(user_agent, fast_mode=fast_mode)
 
@@ -341,6 +384,8 @@ def scrape_paginated(
             attribute_name,
             detail_url_selector,
             detail_url_attribute,
+            detail_image_selector,
+            detail_image_attribute,
         )
         for it in page_items:
             if is_canceled and is_canceled():
