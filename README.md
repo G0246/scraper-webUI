@@ -26,7 +26,7 @@ A very simple Python web scraper with web UI using Flask, not very efficient.
 pip install -r requirements.txt
 ```
 
-3. Run it:
+3. Start the web server:
 
 ```bash
 python app.py

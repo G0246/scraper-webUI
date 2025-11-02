@@ -3,9 +3,6 @@
 # core.py
 # By G0246
 
-# User agent generation is now dynamic.
-# No more hardcoded lists - fresh user agents on every request.
-
 from __future__ import annotations
 
 import time
@@ -30,8 +27,7 @@ DEFAULT_USER_AGENT = (
     "Chrome/126.0 Safari/537.36"
 )
 
-# Keep the old lists for backwards compatibility / fallback
-# But they're not actively used anymore when randomization is enabled
+# Not used
 DESKTOP_USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
@@ -44,10 +40,6 @@ MOBILE_USER_AGENTS = [
 ]
 
 def get_user_agent_stats() -> Dict[str, Any]:
-    """
-    Get statistics about the user agent generation system.
-    Now returns info about the dynamic generator instead of static lists.
-    """
     return {
         "mode": "dynamic",
         "description": "User agents are generated fresh on every request using common patterns",
