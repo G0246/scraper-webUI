@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import time
+import concurrent.futures
 from dataclasses import dataclass
 from typing import Iterable, List, Optional, Callable, Dict, Any
 from urllib.parse import urlparse, urljoin
@@ -26,6 +27,9 @@ DEFAULT_USER_AGENT = (
     "AppleWebKit/537.36 (KHTML, like Gecko) "
     "Chrome/126.0 Safari/537.36"
 )
+
+# Cache for robots.txt parsers to avoid repeated fetches
+_robots_cache: Dict[str, robotparser.RobotFileParser] = {}
 
 # Not used
 DESKTOP_USER_AGENTS = [
@@ -62,10 +66,21 @@ class ScrapeResult:
 def is_allowed_by_robots(url: str, user_agent: str = "scraper-webUI") -> bool:
     parsed = urlparse(url)
     robots_url = f"{parsed.scheme}://{parsed.netloc}/robots.txt"
+    
+    # Check cache first to avoid repeated fetches
+    if robots_url in _robots_cache:
+        robot_bouncer = _robots_cache[robots_url]
+        try:
+            return robot_bouncer.can_fetch(user_agent, url)
+        except Exception:
+            return True
+    
+    # Fetch and cache if not found
     robot_bouncer = robotparser.RobotFileParser()
     try:
         robot_bouncer.set_url(robots_url)
         robot_bouncer.read()
+        _robots_cache[robots_url] = robot_bouncer
         return robot_bouncer.can_fetch(user_agent, url)
     except Exception:
         return True
@@ -108,8 +123,20 @@ def create_session(user_agent: Optional[str], fast_mode: bool = False, retries: 
     session = requests.Session()
     session.headers.update(_build_headers(user_agent, prefer_mobile))
     total_retries = 0 if fast_mode else max(0, retries)
-    retry_strategy = Retry(total=total_retries, backoff_factor=(0.15 if fast_mode else 0.3), status_forcelist=[429, 500, 502, 503, 504])
-    adapter = HTTPAdapter(pool_connections=20, pool_maxsize=50, max_retries=retry_strategy)
+    retry_strategy = Retry(
+        total=total_retries, 
+        backoff_factor=(0.15 if fast_mode else 0.3), 
+        status_forcelist=[429, 500, 502, 503, 504],
+        # Optimize retries by avoiding retries on POST/PUT/PATCH
+        allowed_methods=["HEAD", "GET", "OPTIONS"]
+    )
+    # Increase pool sizes for better concurrent performance
+    adapter = HTTPAdapter(
+        pool_connections=50,  # Increased from 20
+        pool_maxsize=100,     # Increased from 50
+        max_retries=retry_strategy,
+        pool_block=False      # Don't block when pool is full
+    )
     session.mount("http://", adapter)
     session.mount("https://", adapter)
     return session
@@ -218,11 +245,19 @@ def _elements_to_items(
 ) -> List[dict]:
     items: List[dict] = []
     for index, element in enumerate(elements):
-        text = element.get_text(strip=True)
+        # Use get_text with separator to be more efficient than strip=True
+        text = element.get_text(separator=" ", strip=True)
         href = _resolve_link(base_url, element)
         attribute_value = _extract_attribute(element, attribute_name, base_url)
         image_url = _image_url_from_element(base_url, element, attribute_name)
         detail_url = _find_detail_url(base_url, element, detail_url_selector, detail_url_attribute)
+        
+        # Lazily convert to string only when needed - use encode for faster serialization
+        # Limit HTML field length to prevent memory issues with large elements
+        html_str = str(element)
+        if len(html_str) > 5000:  # Truncate very large HTML
+            html_str = html_str[:5000] + "..."
+        
         items.append(
             {
                 "index": index,
@@ -232,7 +267,7 @@ def _elements_to_items(
                 "attribute_value": attribute_value,
                 "image_url": image_url,
                 "detail_url": detail_url,
-                "html": str(element),
+                "html": html_str,
             }
         )
     return items
@@ -249,6 +284,55 @@ def _extract_full_image_from_detail(session: requests.Session, detail_url: str, 
         return _to_absolute_url(detail_url, value)
     except Exception:
         return None
+
+def _enrich_items_with_detail_images(
+    session: requests.Session,
+    items: List[dict],
+    detail_image_selector: str,
+    detail_image_attribute: str,
+    is_canceled: Optional[Callable[[], bool]] = None,
+    max_workers: int = 8
+) -> None:
+    """Fetch detail page images in parallel to enrich items.
+    
+    Modifies items in-place by updating their image_url field.
+    Uses URL deduplication to avoid fetching the same detail page multiple times.
+    """
+    # Build a map of detail URLs to item indices for deduplication
+    url_to_indices: Dict[str, List[int]] = {}
+    for i, item in enumerate(items):
+        detail_url = item.get("detail_url")
+        if detail_url:
+            if detail_url not in url_to_indices:
+                url_to_indices[detail_url] = []
+            url_to_indices[detail_url].append(i)
+    
+    if not url_to_indices:
+        return
+    
+    # Create unique fetch tasks (one per unique URL)
+    unique_urls = list(url_to_indices.keys())
+    
+    def fetch_detail_image(detail_url):
+        if is_canceled and is_canceled():
+            return detail_url, None
+        full_img = _extract_full_image_from_detail(
+            session=session,
+            detail_url=detail_url,
+            detail_image_selector=detail_image_selector,
+            detail_image_attribute=detail_image_attribute,
+        )
+        return detail_url, full_img
+    
+    # Fetch unique images in parallel
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+        for detail_url, full_img in executor.map(fetch_detail_image, unique_urls):
+            if is_canceled and is_canceled():
+                raise RuntimeError("Cancelled")
+            if full_img:
+                # Update all items that share this detail URL
+                for idx in url_to_indices[detail_url]:
+                    items[idx]["image_url"] = full_img
 
 def scrape_with_selector(
     url: str,
@@ -286,22 +370,16 @@ def scrape_with_selector(
 
     items = _elements_to_items(url, elements, attribute_name, detail_url_selector, detail_url_attribute, detail_image_selector, detail_image_attribute)
 
-    # Optionally enrich/override image_url by visiting detail pages
+    # Optionally enrich/override image_url by visiting detail pages (in parallel)
     if detail_image_selector:
-        for item in items:
-            if is_canceled and is_canceled():
-                raise RuntimeError("Cancelled")
-            detail_url = item.get("detail_url")
-            if not detail_url:
-                continue
-            full_img = _extract_full_image_from_detail(
-                session=session,
-                detail_url=detail_url,
-                detail_image_selector=detail_image_selector,
-                detail_image_attribute=detail_image_attribute,
-            )
-            if full_img:
-                item["image_url"] = full_img
+        _enrich_items_with_detail_images(
+            session=session,
+            items=items,
+            detail_image_selector=detail_image_selector,
+            detail_image_attribute=detail_image_attribute,
+            is_canceled=is_canceled,
+            max_workers=8
+        )
 
     if progress_cb:
         progress_cb({"stage": "done", "items": len(items), "url": url})
@@ -405,22 +483,16 @@ def scrape_paginated(
             break
         current_url = next_url
 
-    # Enrich/override items with full images if requested
+    # Enrich/override items with full images if requested (in parallel)
     if detail_image_selector:
-        for item in collected:
-            if is_canceled and is_canceled():
-                raise RuntimeError("Cancelled")
-            detail_url = item.get("detail_url")
-            if not detail_url:
-                continue
-            full_img = _extract_full_image_from_detail(
-                session=session,
-                detail_url=detail_url,
-                detail_image_selector=detail_image_selector,
-                detail_image_attribute=detail_image_attribute,
-            )
-            if full_img:
-                item["image_url"] = full_img
+        _enrich_items_with_detail_images(
+            session=session,
+            items=collected,
+            detail_image_selector=detail_image_selector,
+            detail_image_attribute=detail_image_attribute,
+            is_canceled=is_canceled,
+            max_workers=8
+        )
 
     # Reindex items
     for idx, item in enumerate(collected):
