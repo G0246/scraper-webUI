@@ -5,7 +5,14 @@
 
 import os
 import io
-from typing import Optional
+import re
+import csv
+import json
+import zipfile
+import concurrent.futures
+import requests
+from typing import Optional, List
+from urllib.parse import urlparse
 
 from flask import (
     Flask,
@@ -293,7 +300,6 @@ def create_app() -> Flask:
             )
 
         if export_format == "json":
-            import json
             json_goodies = json.dumps([item for item in result.items], ensure_ascii=False, indent=2)
             buffer = io.BytesIO(json_goodies.encode("utf-8"))
             buffer.seek(0)
@@ -305,7 +311,6 @@ def create_app() -> Flask:
             )
 
         # Default to CSV
-        import csv
         text_buffer = io.StringIO()
         csv_wizard = csv.DictWriter(
             text_buffer,
@@ -327,9 +332,6 @@ def create_app() -> Flask:
 
     @app.route("/download-image", methods=["GET"])
     def download_image():
-        import requests
-        from urllib.parse import urlparse
-
         image_url = request.args.get("url", "").strip()
         if not image_url:
             flash("Missing image URL", "error")
@@ -356,12 +358,6 @@ def create_app() -> Flask:
 
     @app.route("/download-all-images", methods=["GET"])
     def download_all_images():
-        import zipfile
-        import re
-        import requests
-        import concurrent.futures
-        from urllib.parse import urlparse
-
         target_url = request.args.get("url", "").strip()
         selector_type = request.args.get("selector_type", "css").strip().lower()
         selector = request.args.get("selector", "").strip()
@@ -440,19 +436,22 @@ def create_app() -> Flask:
         def sanitize(name: str) -> str:
             return re.sub(r"[^A-Za-z0-9._-]", "_", name)[:120]
 
-        headers = {"User-Agent": user_agent or "scraper-webUI"}
+        # Use a session for connection pooling across image downloads
+        img_session = requests.Session()
+        img_session.headers.update({"User-Agent": user_agent or "scraper-webUI"})
         zip_buffer = io.BytesIO()
 
         def fetch(idx_and_url):
             idx, img_url = idx_and_url
             try:
-                resp = requests.get(img_url, headers=headers, timeout=20)
+                resp = img_session.get(img_url, timeout=20)
                 resp.raise_for_status()
                 return idx, img_url, resp
             except Exception:
                 return idx, img_url, None
 
-        with zipfile.ZipFile(zip_buffer, mode="w", compression=zipfile.ZIP_DEFLATED) as zf:
+        # Use ZIP_DEFLATED with compression level for better performance
+        with zipfile.ZipFile(zip_buffer, mode="w", compression=zipfile.ZIP_DEFLATED, compresslevel=6) as zf:
             with concurrent.futures.ThreadPoolExecutor(max_workers=8) as ex:
                 for idx, img_url, resp in ex.map(fetch, [(i, it["image_url"]) for i, it in enumerate(treasure_trove)]):
                     if resp is None:
